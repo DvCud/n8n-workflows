@@ -2,7 +2,6 @@
 
 ![n8n](https://img.shields.io/badge/n8n-Workflow_Automation-FF6B6B?style=for-the-badge&logo=n8n&logoColor=white)
 ![Performance](https://img.shields.io/badge/Performance-Optimized-brightgreen?style=for-the-badge)
-![License](https://img.shields.io/github/license/DvCud/n8n-workflows?style=for-the-badge)
 
 ## 🚀 Overview
 
@@ -41,10 +40,6 @@ Got an idea to make these even faster?
 2.  Create a feature branch (`git checkout -b feature/Optimization`).
 3.  Commit your changes.
 4.  Push to the branch and open a Pull Request.
-
-## 📄 License
-
-This project is licensed under the [MIT License](LICENSE).
 
 ---
 <div align="center">
