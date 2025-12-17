@@ -1,0 +1,1018 @@
+{
+  "name": "Autonomous LinkedIn Job Application Agent with AI-Powered Resume Matching",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            },
+            {
+              "triggerAtHour": 19
+            }
+          ]
+        }
+      },
+      "id": "cbf6ea64-b5a2-48ce-9d6f-d934a4c90d66",
+      "name": "Scout Schedule (8am & 7pm)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -672,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "resumeFileId",
+              "value": "<__PLACEHOLDER_VALUE__Your Resume PDF File ID from Google Drive__>",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "linkedinSearchKeywords",
+              "value": "<__PLACEHOLDER_VALUE__LinkedIn job search keywords (e.g., \"Software Engineer\" OR \"Data Scientist\")__>",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "apifyActorId",
+              "value": "<__PLACEHOLDER_VALUE__Apify Actor ID for LinkedIn scraper__>",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "apifyApiToken",
+              "value": "<__PLACEHOLDER_VALUE__Apify API Token__>",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "templateSheetId",
+              "value": "<__PLACEHOLDER_VALUE__Google Sheet Template ID (with columns: Job Title, Company, Match Score, HR Email, Case Study, Status)__>",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "yourEmail",
+              "value": "<__PLACEHOLDER_VALUE__Your email address for sending applications__>",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "d7c4bef3-7ae6-4bd1-9747-8bd96aac9e8c",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -448,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst day = String(now.getDate()).padStart(2, '0');\nconst month = String(now.getMonth() + 1).padStart(2, '0');\nconst year = now.getFullYear();\n\nreturn [{ json: { todayDate: `${day}-${month}-${year}` } }];"
+      },
+      "id": "814beded-f465-477e-af7a-e2f14faca84e",
+      "name": "Format Today's Date",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "=data",
+        "name": "={{ $execution.resumeUrl }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "root",
+          "cachedResultName": "/ (Root folder)"
+        },
+        "options": {}
+      },
+      "id": "d4007344-6c24-4b69-b962-6d1da13a5547",
+      "name": "Get Resume PDF from Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "uLV9ac5358YWmYGb",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "id": "6f0e7f2f-baf5-4e1f-ab04-3e1f067ca025",
+      "name": "Extract Resume Text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.apify.com/v2/acts/{{ $('Workflow Configuration').first().json.apifyActorId }}/runs?token={{ $('Workflow Configuration').first().json.apifyApiToken }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"searches\": [{\n    \"keywords\": {{ $('Workflow Configuration').first().json.linkedinSearchKeywords }}\n  }]\n}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "33c57507-e1fa-48a1-924d-35bb579b9a19",
+      "name": "Apify - Scrape LinkedIn Jobs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "b8540874-967c-4e9d-ac55-984010add022",
+      "name": "Combine Resume + Jobs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        448,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "={{ \"name contains '\" + $('Format Today\\'s Date').first().json.todayDate + \"'\" }}",
+        "filter": {
+          "driveId": {
+            "__rl": true,
+            "mode": "list",
+            "value": "My Drive"
+          },
+          "folderId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "root"
+          }
+        },
+        "options": {}
+      },
+      "id": "68f2ac9c-9978-448a-8e86-9b4a88b90ba9",
+      "name": "Search for Today's Sheet",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        672,
+        96
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "uLV9ac5358YWmYGb",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.files }}",
+              "operator": {
+                "type": "array",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $json.files }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "array",
+                "operation": "lengthGt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a99bb9ed-b820-47a5-b15c-41b7e8a73a62",
+      "name": "Sheet Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        896,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "documentId": {
+          "__rl": true,
+          "value": "1qLaJXAtQAhuP8W_-gM1yX3H3hbUSGP8PJPMxOX6o7TI",
+          "mode": "list",
+          "cachedResultName": "Autonomous LinkedIn Job Application Agent with AI-Powered Resume Matching",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1qLaJXAtQAhuP8W_-gM1yX3H3hbUSGP8PJPMxOX6o7TI/edit?usp=drivesdk"
+        },
+        "title": "={{ $('Format Today\\'s Date').first().json.todayDate }}",
+        "options": {}
+      },
+      "id": "7eb3e88e-4925-4e2e-80f5-fbb8c61d2311",
+      "name": "Create New Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "9JJUZPMdVTuwseGT",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "sheetId",
+              "value": "={{ $json.files[0].id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "614d32f3-fae1-40f4-8744-07a03540ab9d",
+      "name": "Set Sheet ID (Existing)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1344,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "sheetId",
+              "value": "={{ $json.spreadsheetId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "cc4f9d02-74d0-47e5-93a3-1091e8e7ce81",
+      "name": "Set Sheet ID (New)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1344,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "2b344d56-e99d-45fa-a651-12cd4e168527",
+      "name": "Merge Sheet IDs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1568,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Job Details:\n{{ $json.jobTitle }}\n{{ $json.company }}\n{{ $json.description }}\n\nResume:\n{{ $('Extract Resume Text').first().json.text }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an expert recruitment analyst specializing in resume-to-job matching.\n\nYour task is to:\n1. Analyze the job description and requirements\n2. Compare against the candidate's resume\n3. Calculate a match score (0-100) based on skills, experience, and qualifications\n4. Extract or infer HR contact email from the job posting context (look for contact info, recruiter names, company domain patterns)\n5. Generate a brief \"Case Study\" (2-3 sentences) explaining why this candidate is a strong fit, highlighting specific matching skills and experiences\n\nReturn your analysis in the exact JSON format specified by the output parser."
+        }
+      },
+      "id": "fcc55273-588b-499e-9e0b-183f9ad99f72",
+      "name": "Gemini Job Analyzer",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        1792,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-1.5-pro",
+        "options": {}
+      },
+      "id": "9f755bff-8635-4616-8705-bf2e5c2e98ff",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1808,
+        320
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "UlIRUkJFc0cVP7QN",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"jobTitle\": {\n      \"type\": \"string\"\n    },\n    \"company\": {\n      \"type\": \"string\"\n    },\n    \"matchScore\": {\n      \"type\": \"number\"\n    },\n    \"hrEmail\": {\n      \"type\": \"string\"\n    },\n    \"caseStudy\": {\n      \"type\": \"string\"\n    },\n    \"status\": {\n      \"type\": \"string\",\n      \"default\": \"PENDING\"\n    }\n  }\n}"
+      },
+      "id": "5cdfcac0-5678-42fb-badc-21a6fd4ef73c",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1984,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Merge Sheet IDs').first().json.sheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {
+            "Job Title": "={{ $json.jobTitle }}",
+            "Company": "={{ $json.company }}",
+            "Match Score": "={{ $json.matchScore }}",
+            "HR Email": "={{ $json.hrEmail }}",
+            "Case Study": "={{ $json.caseStudy }}",
+            "Status": "={{ $json.status }}"
+          },
+          "matchingColumns": [
+            "Job Title"
+          ],
+          "schema": [
+            {
+              "id": "Job Title",
+              "displayName": "Job Title",
+              "required": false,
+              "defaultMatch": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Match Score",
+              "displayName": "Match Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "HR Email",
+              "displayName": "HR Email",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Case Study",
+              "displayName": "Case Study",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "41fbf550-d050-4051-86f7-9ae780c1e24b",
+      "name": "Write Analysis to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2144,
+        96
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "9JJUZPMdVTuwseGT",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "id": "d1cdd6c5-e014-470c-abe1-5b3cbacd6436",
+      "name": "Executioner Schedule (Hourly)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -672,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst day = String(now.getDate()).padStart(2, '0');\nconst month = String(now.getMonth() + 1).padStart(2, '0');\nconst year = now.getFullYear();\n\nreturn [{ json: { todayDate: `${day}-${month}-${year}` } }];"
+      },
+      "id": "85a9c86c-2ef7-40f1-bd08-268b8a2d8e80",
+      "name": "Format Today's Date (Executioner)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "={{ 'name contains \\'' + $json.todayDate + '\\'' }}",
+        "filter": {},
+        "options": {}
+      },
+      "id": "7ffcb846-116a-4017-97ba-fed464525c8d",
+      "name": "Find Today's Sheet (Executioner)",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -224,
+        528
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "uLV9ac5358YWmYGb",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.files[0].id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sheet1"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Status",
+              "lookupValue": "APPROVED"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": false
+        }
+      },
+      "id": "f0bf88c9-c0ef-45b9-9737-2a5f48f5718c",
+      "name": "Read Approved Rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        0,
+        528
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "9JJUZPMdVTuwseGT",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "25a1f3cb-17ca-491a-b46a-97ed11381c55",
+      "name": "Has Approved Rows?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Job: {{ $json['Job Title'] }} at {{ $json.Company }}\nMatch Score: {{ $json['Match Score'] }}\nCase Study: {{ $json['Case Study'] }}\nHR Email: {{ $json['HR Email'] }}",
+        "options": {
+          "systemMessage": "You are an expert cold email writer specializing in job applications.\n\nYour task is to:\n1. Craft a highly personalized cold email to the HR contact\n2. Reference the specific job title and company\n3. Incorporate the case study insights to demonstrate fit\n4. Keep it concise (150-200 words), professional, and compelling\n5. Include a clear call-to-action\n6. Use a subject line format: \"Application: [Job Title] - [Your Key Strength]\"\n\nReturn the email in plain text format with Subject and Body clearly separated."
+        }
+      },
+      "id": "8691ad1b-5c37-46bf-a980-dd941e66ba4b",
+      "name": "Gemini Email Writer",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        448,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-1.5-pro",
+        "options": {}
+      },
+      "id": "6050a1b0-ed51-4e28-a295-d8c5f37c3174",
+      "name": "Google Gemini Chat Model (Email)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        528,
+        752
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "UlIRUkJFc0cVP7QN",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json['HR Email'] }}",
+        "subject": "={{ $json.output.split('Subject:')[1].split('Body:')[0].trim() }}",
+        "message": "={{ $json.output.split('Body:')[1].trim() }}",
+        "options": {}
+      },
+      "id": "5c1ab989-6baf-43fb-b430-10b18e9eabf1",
+      "name": "Send Cold Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        800,
+        528
+      ],
+      "webhookId": "fbfb3ce8-21fa-4e99-83e9-792898a468b5",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "zeHMA5axzbcG5Y8R",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Find Today\\'s Sheet (Executioner)').first().json.files[0].id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Job Title": "={{ $json['Job Title'] }}",
+            "Status": "EMAILED"
+          },
+          "matchingColumns": [
+            "Job Title"
+          ],
+          "schema": [
+            {
+              "id": "Job Title",
+              "displayName": "Job Title",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "653acf98-ccdc-4d72-984a-9ec20ffab108",
+      "name": "Update Status to EMAILED",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1024,
+        528
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "9JJUZPMdVTuwseGT",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Scout Schedule (8am & 7pm)": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Format Today's Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Today's Date": {
+      "main": [
+        [
+          {
+            "node": "Get Resume PDF from Drive",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Apify - Scrape LinkedIn Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Resume PDF from Drive": {
+      "main": [
+        [
+          {
+            "node": "Extract Resume Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Resume Text": {
+      "main": [
+        [
+          {
+            "node": "Combine Resume + Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify - Scrape LinkedIn Jobs": {
+      "main": [
+        [
+          {
+            "node": "Combine Resume + Jobs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Combine Resume + Jobs": {
+      "main": [
+        [
+          {
+            "node": "Search for Today's Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search for Today's Sheet": {
+      "main": [
+        [
+          {
+            "node": "Sheet Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet Exists?": {
+      "main": [
+        [
+          {
+            "node": "Set Sheet ID (Existing)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create New Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create New Sheet": {
+      "main": [
+        [
+          {
+            "node": "Set Sheet ID (New)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Sheet ID (Existing)": {
+      "main": [
+        [
+          {
+            "node": "Merge Sheet IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Sheet ID (New)": {
+      "main": [
+        [
+          {
+            "node": "Merge Sheet IDs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Sheet IDs": {
+      "main": [
+        [
+          {
+            "node": "Gemini Job Analyzer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gemini Job Analyzer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Gemini Job Analyzer",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Job Analyzer": {
+      "main": [
+        [
+          {
+            "node": "Write Analysis to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executioner Schedule (Hourly)": {
+      "main": [
+        [
+          {
+            "node": "Format Today's Date (Executioner)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Today's Date (Executioner)": {
+      "main": [
+        [
+          {
+            "node": "Find Today's Sheet (Executioner)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Today's Sheet (Executioner)": {
+      "main": [
+        [
+          {
+            "node": "Read Approved Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Approved Rows": {
+      "main": [
+        [
+          {
+            "node": "Has Approved Rows?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Approved Rows?": {
+      "main": [
+        [
+          {
+            "node": "Gemini Email Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model (Email)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gemini Email Writer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Email Writer": {
+      "main": [
+        [
+          {
+            "node": "Send Cold Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Cold Email": {
+      "main": [
+        [
+          {
+            "node": "Update Status to EMAILED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a0df4785-d3f4-4aa2-b065-3907bf9153f3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "192cb3f736e87d9c71b7323ba9860cbe35ba9c18dc08a37c3d539f4c38367692"
+  },
+  "id": "ZWthgbSHxS8N1DFu",
+  "tags": []
+}

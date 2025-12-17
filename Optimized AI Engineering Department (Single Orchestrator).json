@@ -1,0 +1,339 @@
+{
+  "name": "Optimized AI Engineering Department (Single Orchestrator)",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "initialMessages": "Hi there! 👋\nMy name is Shashi. How can I assist you today?",
+        "options": {}
+      },
+      "id": "d446aa50-599e-4136-a919-2269d9b9227a",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -160,
+        -80
+      ],
+      "webhookId": "90afcf1e-a835-424c-b0d0-5dc9415afedd"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "=You are the VP of Engineering and Technical Director. Your goal is to coordinate a team of specialized AI engineers (Tools) to solve complex challenges and then synthesize their findings into a single, cohesive \"Technical Specification Document.\"\n\n**YOUR PROCESS:**\n1. Analyze the user request.\n2. Call the necessary Tools (Frontend, Backend, DevOps, etc.) to get specific expert advice.\n3. Once you have gathered all information, synthesize it into the Final Output Format below.\n\n**FORMATTING RULES:**\n1. Use professional Markdown formatting (H1 for Title, H2 for Sections, H3 for Sub-sections).\n2. Use Code Blocks for technical commands or schemas.\n3. Do NOT say \"The Backend Agent said...\" instead, state it as a decision: \"The system will utilize...\"\n\n**FINAL OUTPUT STRUCTURE:**\n\n# [Project Name] - Technical Specification\n\n## 1. Executive Summary\n- High-level overview and key architectural decisions.\n\n## 2. System Architecture & Stack\n- Architecture Style (Microservices/Monolith)\n- Core Tech Stack decisions\n\n## 3. Detailed Implementation\n### Frontend Strategy\n[Synthesize Frontend Tool advice here]\n### Backend & Data Strategy\n[Synthesize Backend Tool advice here]\n\n## 4. Operational Excellence\n- Infrastructure & CI/CD (DevOps)\n- Security Posture (Security)\n\n## 5. QA & Testing Strategy\n[Synthesize QA Tool advice here]\n\n**TONE:**\nAuthoritative, technical, concise, and decisive."
+        }
+      },
+      "id": "f2590a33-93b2-420f-9211-5667815588b4",
+      "name": "Technical Director Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        888,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Expert in frontend, UI/UX, React/Vue/Angular. Use this tool for questions about user interfaces, state management, and client-side performance.",
+        "text": "={{ $fromAI(\"task\", \"The specific frontend question\", \"string\") }}",
+        "options": {
+          "systemMessage": "You are an expert Frontend Developer. Provide specific, code-heavy, modern solutions regarding UI/UX, frameworks (React/Vue), and state management. Focus on performance and accessibility."
+        }
+      },
+      "id": "04005506-726f-46a6-baae-5af2e2cbaff1",
+      "name": "Tool - Frontend",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Expert in backend, APIs, Databases, and Server Logic. Use this tool for questions about API design (REST/GraphQL), DB schema, and server scalability.",
+        "text": "={{ $fromAI(\"task\", \"The specific backend question\", \"string\") }}",
+        "options": {
+          "systemMessage": "You are an expert Backend Developer. Provide scalable solutions for API design, database architecture (SQL/NoSQL), and server-side logic. Focus on data integrity and speed."
+        }
+      },
+      "id": "850f131d-5c5d-4dc2-845d-09435c5d4b3f",
+      "name": "Tool - Backend",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        736,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Expert in DevOps, CI/CD, Cloud (AWS/Azure), and Containerization. Use this for questions about deployment, pipelines, and infrastructure.",
+        "text": "={{ $fromAI(\"task\", \"The specific DevOps question\", \"string\") }}",
+        "options": {
+          "systemMessage": "You are an expert DevOps Engineer. Provide infrastructure-as-code solutions, CI/CD pipeline strategies, and containerization (Docker/K8s) configs. Focus on reliability and automation."
+        }
+      },
+      "id": "0e509a96-ac2a-4c82-84da-d90e99f69476",
+      "name": "Tool - DevOps",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        1024,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Expert in System Architecture and High-Level Patterns. Use this for questions about Microservices vs Monolith, scalability patterns, and trade-offs.",
+        "text": "={{ $fromAI(\"task\", \"The specific architecture question\", \"string\") }}",
+        "options": {
+          "systemMessage": "You are an expert Software Architect. Provide high-level design patterns, system diagrams descriptions, and trade-off analyses. Focus on long-term scalability and maintainability."
+        }
+      },
+      "id": "ee21057a-0d67-4b88-9996-4a5727b30bb2",
+      "name": "Tool - Architect",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        1312,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Expert in Security, OWASP, and Compliance. Use this for questions about encryption, authentication, and vulnerability mitigation.",
+        "text": "={{ $fromAI(\"task\", \"The specific security question\", \"string\") }}",
+        "options": {
+          "systemMessage": "You are an expert Security Engineer. Identify risks and provide mitigation strategies (OWASP), encryption standards, and authentication protocols. Focus on safety without compromising usability."
+        }
+      },
+      "id": "6ddcc53d-b5ae-4978-a131-8873cda382a6",
+      "name": "Tool - Security",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        1600,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Expert in QA, Testing Automation, and Strategy. Use this for questions about testing frameworks, regression testing, and quality metrics.",
+        "text": "={{ $fromAI(\"task\", \"The specific QA question\", \"string\") }}",
+        "options": {
+          "systemMessage": "You are an expert QA Engineer. Define testing strategies, automation frameworks (Cypress/Selenium), and load testing approaches. Focus on bug prevention and coverage."
+        }
+      },
+      "id": "28785185-cbcd-40c0-94c3-63287fdf041a",
+      "name": "Tool - QA",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        1888,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "id": "9af0ac80-3ea1-4ba0-acab-3018452adfd4",
+      "name": "Gemini Chat Model - Director",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        192,
+        144
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "PZCOgGSQiEHJfz0x",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "id": "ab3b7e07-a26c-417a-b548-902a710b8129",
+      "name": "Gemini Chat Model - Tools",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        352
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "PZCOgGSQiEHJfz0x",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "e929b819-d9f8-4d16-9106-ef6830d15d34",
+      "name": "Shared Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        320,
+        144
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "Technical Director Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Chat Model - Director": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Technical Director Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shared Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Technical Director Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool - Frontend": {
+      "ai_tool": [
+        [
+          {
+            "node": "Technical Director Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool - Backend": {
+      "ai_tool": [
+        [
+          {
+            "node": "Technical Director Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool - DevOps": {
+      "ai_tool": [
+        [
+          {
+            "node": "Technical Director Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool - Architect": {
+      "ai_tool": [
+        [
+          {
+            "node": "Technical Director Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool - Security": {
+      "ai_tool": [
+        [
+          {
+            "node": "Technical Director Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool - QA": {
+      "ai_tool": [
+        [
+          {
+            "node": "Technical Director Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Chat Model - Tools": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Tool - Frontend",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Tool - Backend",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Tool - DevOps",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Tool - Architect",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Tool - Security",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Tool - QA",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a2de661a-fe42-4e4c-a315-982d651d9e07",
+  "meta": {
+    "instanceId": "aa0fe391a5f8d0d0d337b84dc8b3db15d3f4068cefd6bccf36eeebc1acc532f4"
+  },
+  "id": "RrrqQLqf4HyyuXwG",
+  "tags": []
+}

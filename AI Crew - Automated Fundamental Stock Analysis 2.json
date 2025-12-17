@@ -1,0 +1,498 @@
+{
+  "name": "AI Crew - Automated Fundamental Stock Analysis 2",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "stock-analysis",
+        "options": {}
+      },
+      "id": "101e06a9-b057-45e4-9549-846726a91e58",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1968,
+        400
+      ],
+      "webhookId": "stock-analysis"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "stock_symbol",
+              "name": "stock_symbol",
+              "value": "={{ $json.body.symbol || 'AAPL' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0b2f4629-b98a-4772-8482-1fe6651c4467",
+      "name": "Set Stock Symbol",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        -1744,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://www.alphavantage.co/query?function=OVERVIEW&symbol={{ $json.stock_symbol }}&apikey=YOUR_API_KEY",
+        "options": {}
+      },
+      "id": "b9558043-10a4-46ee-a7ef-73dea1f5ebc4",
+      "name": "Fetch Company Overview",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1520,
+        400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.alphavantage.co/query?function=INCOME_STATEMENT&symbol={{ $('Set Stock Symbol').item.json.stock_symbol }}&apikey=YOUR_API_KEY",
+        "options": {}
+      },
+      "id": "890a801e-34d1-435f-bb11-9672e2397e88",
+      "name": "Fetch Income Statement",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1312,
+        400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.alphavantage.co/query?function=BALANCE_SHEET&symbol={{ $('Set Stock Symbol').item.json.stock_symbol }}&apikey=YOUR_API_KEY",
+        "options": {}
+      },
+      "id": "de46012d-f048-49bf-bfa4-677eadf90288",
+      "name": "Fetch Balance Sheet",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1088,
+        400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers={{ $('Set Stock Symbol').item.json.stock_symbol }}&apikey=YOUR_API_KEY",
+        "options": {}
+      },
+      "id": "57a1f09e-ae71-4e55-908c-c80d105f5469",
+      "name": "Fetch News & Sentiment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -864,
+        400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Access data from previous nodes\nconst symbol = $('Set Stock Symbol').first().json.stock_symbol;\nconst overview = $('Fetch Company Overview').first().json;\nconst income = $('Fetch Income Statement').first().json;\nconst balance = $('Fetch Balance Sheet').first().json;\nconst news = $('Fetch News & Sentiment').first().json;\n\n// Helper to detect API Failures (Alpha Vantage specific)\n// They often return 200 OK but with a \"Note\" (Limit Reached) or empty object\nfunction isValid(data) {\n  if (!data) return false;\n  if (data.Note) return false; // Rate limit hit\n  if (data[\"Error Message\"]) return false; // Invalid symbol\n  return true;\n}\n\n// Validate Critical Data\nif (!isValid(overview) || !isValid(income)) {\n  return {\n    json: {\n      error: true,\n      message: \"API Rate Limit Reached or Invalid Symbol\",\n      details: overview || \"No data returned\"\n    }\n  }\n}\n\n// OPTIMIZATION: Reduce Token Usage\n// Don't send 50 news articles. Send top 5.\nconst cleanNews = (news.feed || []).slice(0, 5).map(n => ({\n  title: n.title,\n  summary: n.summary,\n  sentiment: n.overall_sentiment_label\n}));\n\n// Construct the clean payload\nreturn {\n  json: {\n    error: false,\n    symbol: symbol,\n    financial_data: {\n      overview: overview,\n      income: income.annualReports ? income.annualReports.slice(0,2) : [], // Last 2 years only\n      balance: balance.annualReports ? balance.annualReports.slice(0,2) : [],\n      news: cleanNews\n    }\n  }\n};"
+      },
+      "id": "7ed63f39-ca8a-414b-b541-283c95e7833c",
+      "name": "Aggregate & Clean Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-success",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "={{ false }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "622c0769-b49e-4640-98c8-fcc5e9d5d035",
+      "name": "Data Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Senior Financial Analyst. Analyze this data for {{ $json.symbol }}:\n\n{{ JSON.stringify($json.financial_data.income) }}\n{{ JSON.stringify($json.financial_data.overview) }}\n\nFocus on: Revenue Growth, Profitability, and P/E ratios.",
+        "options": {}
+      },
+      "id": "efb783e8-fcd7-4145-b51b-349c94318817",
+      "name": "AI Agent: Financial Analyst",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        -144,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Market Researcher. Analyze these news items for {{ $json.symbol }}:\n\n{{ JSON.stringify($json.financial_data.news) }}\n\nDetermine the market sentiment and competitive risks.",
+        "options": {}
+      },
+      "id": "21861418-0efc-48f3-992d-a81dfce516f8",
+      "name": "AI Agent: Market Researcher",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        -144,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Risk Officer. Analyze the Balance Sheet for {{ $json.symbol }}:\n\n{{ JSON.stringify($json.financial_data.balance) }}\n\nFocus on Debt-to-Equity and liquidity risks.",
+        "options": {}
+      },
+      "id": "78d7ce3f-111d-4b83-aed9-6806fd6660df",
+      "name": "AI Agent: Risk Assessor",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        -144,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  json: {\n    financial_report: $('AI Agent: Financial Analyst').item.json.output,\n    market_report: $('AI Agent: Market Researcher').item.json.output,\n    risk_report: $('AI Agent: Risk Assessor').item.json.output,\n    symbol: $('Aggregate & Clean Data').item.json.symbol\n  }\n};"
+      },
+      "id": "90718a78-54ac-4448-ba4a-db40dc19b93c",
+      "name": "Merge Agent Insights",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are the Chief Investment Officer. Synthesize these reports into a final recommendation for {{ $json.symbol }}.\n\nFINANCIAL:\n{{ $json.financial_report }}\n\nMARKET:\n{{ $json.market_report }}\n\nRISK:\n{{ $json.risk_report }}\n\nFormat with Markdown.",
+        "options": {}
+      },
+      "id": "723ba03d-6ef0-4613-a5d6-0555836b2df4",
+      "name": "AI Agent: CIO",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        400,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n \"symbol\": \"{{ $json.symbol }}\",\n \"report\": \"{{ $json.output }}\"\n}",
+        "options": {}
+      },
+      "id": "f17bd054-eb2a-4acd-b1da-35d69edbb20e",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        736,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n \"error\": true,\n \"message\": \"{{ $json.message }}\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "05e5f5a4-1cac-4c90-9c25-4c6d478bff17",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -144,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "e3d7f7ef-72e3-4359-880d-00986ae335e2",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -192,
+        912
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "PZCOgGSQiEHJfz0x",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-3-5-sonnet-20240620",
+          "cachedResultName": "Claude 3.5 Sonnet"
+        },
+        "options": {}
+      },
+      "id": "1a24ec25-9902-4f48-9d7f-72f8d6fd6f31",
+      "name": "Anthropic Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        368,
+        736
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Stock Symbol",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Stock Symbol": {
+      "main": [
+        [
+          {
+            "node": "Fetch Company Overview",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Company Overview": {
+      "main": [
+        [
+          {
+            "node": "Fetch Income Statement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Income Statement": {
+      "main": [
+        [
+          {
+            "node": "Fetch Balance Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Balance Sheet": {
+      "main": [
+        [
+          {
+            "node": "Fetch News & Sentiment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch News & Sentiment": {
+      "main": [
+        [
+          {
+            "node": "Aggregate & Clean Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate & Clean Data": {
+      "main": [
+        [
+          {
+            "node": "Data Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Valid?": {
+      "main": [
+        [
+          {
+            "node": "AI Agent: Financial Analyst",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AI Agent: Market Researcher",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AI Agent: Risk Assessor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent: Financial Analyst": {
+      "main": [
+        [
+          {
+            "node": "Merge Agent Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent: Market Researcher": {
+      "main": [
+        [
+          {
+            "node": "Merge Agent Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent: Risk Assessor": {
+      "main": [
+        [
+          {
+            "node": "Merge Agent Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Agent Insights": {
+      "main": [
+        [
+          {
+            "node": "AI Agent: CIO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent: CIO": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent: Financial Analyst",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent: Risk Assessor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent: Market Researcher",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent: CIO",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1db8aac4-b8f5-44fc-a23d-c816d9dfcc61",
+  "meta": {
+    "instanceId": "aa0fe391a5f8d0d0d337b84dc8b3db15d3f4068cefd6bccf36eeebc1acc532f4"
+  },
+  "id": "qLSl3pQ7Wvc7qdxh",
+  "tags": []
+}

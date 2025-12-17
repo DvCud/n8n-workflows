@@ -1,0 +1,335 @@
+{
+  "name": "Strategic SEO Compass",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## The Strategic SEO Compass \n\n**Update:** Removed the 'Split Out' node which was blocking data. \n**Action Required:** Re-connect your Google Sheet in the final node.",
+        "height": 748,
+        "width": 1646,
+        "color": 4
+      },
+      "id": "e831bdfb-9d93-4ccd-916b-2861cdcad4b7",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -464,
+        112
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "973e949e-1afd-4378-8482-d2168532eff6",
+              "name": "product",
+              "type": "string",
+              "value": "Mobile application for property management in India that connects landlords and tenants, streamlining rent collection, agreements, and maintenance tracking."
+            },
+            {
+              "id": "ce9c0a8f-6157-4b46-8b77-133545dc71bd",
+              "name": "pain points",
+              "type": "string",
+              "value": "Tracking rent payments manually via Excel or paper diaries, chasing tenants for late payments, losing track of maintenance complaints on WhatsApp, difficulty creating legally binding rental agreements, and lack of transparency in expense management."
+            },
+            {
+              "id": "5abc858a-c412-4acf-acb9-488e4d992d2f",
+              "name": "goals",
+              "type": "string",
+              "value": "Automate rent reminders and collection, digitalize the rental agreement process, centralized dashboard for property income/expense, find verified tenants quickly, and reduce communication friction."
+            },
+            {
+              "id": "fbdd1ef7-c1b9-48eb-b73e-a383f12b5ba1",
+              "name": "current solutions",
+              "type": "string",
+              "value": "Managing everything via WhatsApp chats, manual cash or UPI collection without invoices, using generic notebooks for accounting, and posting on unverified Facebook groups to find tenants."
+            },
+            {
+              "id": "2e5c8f48-266e-486c-956f-51f1449f6288",
+              "name": "expertise level",
+              "type": "string",
+              "value": "Low to Medium technical expertise. Landlords are often older and prefer simple interfaces."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "67b1d37d-0c78-426a-8703-7fa7b90f0d5e",
+      "name": "Set Ideal Customer Profile (ICP)",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -208,
+        464
+      ],
+      "notesInFlow": true,
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "df11698e-f59e-4d7f-82c4-33ff571a9806",
+      "name": "Aggregate for AI",
+      "type": "n8n-nodes-base.aggregate",
+      "position": [
+        32,
+        464
+      ],
+      "notesInFlow": true,
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "**REQUIRED**\nConnect to your own AI API above",
+        "height": 80,
+        "width": 284.87764467541297,
+        "color": 3
+      },
+      "id": "959c1b8a-7d60-45ba-885c-f19a7d4aeee0",
+      "name": "Sticky Note14",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        240,
+        736
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "agent": "conversationalAgent",
+        "promptType": "define",
+        "text": "=User:\nAnalyze the following Ideal Customer Profile (ICP) for a B2B/B2C SaaS product.\n\n<ICP>\nProduct: {{ $json.data[0].product }}\nPain Points: {{ $json.data[0][\"pain points\"] }}\nGoals: {{ $json.data[0].goals }}\nCurrent Solutions: {{ $json.data[0][\"current solutions\"] }}\nTarget Audience: {{ $json.data[0][\"expertise level\"] }}\n</ICP>\n\n<Instructions>\n1. Act as a Senior SEO Strategist.\n2. Generate a list of 20 high-value seed keywords based on the ICP.\n3. **CRITICAL:** Do not just list the keywords. You must categorize them by Search Intent and Funnel Stage.\n4. Return the result as a strictly formatted JSON array of objects. Do not include markdown formatting (like ```json). Just the raw array.\n\nUse these definitions for intent:\n- **Informational:** User is looking for answers, guides, or templates (e.g., \"how to track rent\"). Best for Blog Posts.\n- **Commercial:** User is investigating software options (e.g., \"best app for landlords india\"). Best for Comparison Pages/Listicles.\n- **Transactional:** User is ready to buy or download (e.g., \"download rent manager app\"). Best for Home Page/Landing Page.\n</Instructions>\n\n<OutputFormat>\n[\n  {\n    \"keyword\": \"example keyword\",\n    \"intent\": \"Informational\",\n    \"funnel_stage\": \"Awareness\",\n    \"content_idea\": \"Blog Post: 5 Ways to Track Rent\"\n  },\n  ...\n]\n</OutputFormat>",
+        "options": {
+          "systemMessage": "=System: You are an expert SEO Strategist and Content Planner. You output strict JSON arrays only."
+        }
+      },
+      "id": "cfbbe466-2ba9-452a-8a93-91b645c9d858",
+      "name": "AI Strategist",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        304,
+        464
+      ],
+      "typeVersion": 1.6
+    },
+    {
+      "parameters": {},
+      "id": "c536c16f-9945-41c2-aa96-2800f7e370d3",
+      "name": "When clicking ‘Test workflow’",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        -416,
+        464
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        320,
+        624
+      ],
+      "id": "56633255-7e4a-41bf-b0fb-eb802d26555e",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "PZCOgGSQiEHJfz0x",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the string output from AI into a JSON object\nconst aiOutput = $input.first().json.output;\n\n// Sometimes AI wraps in markdown code blocks, remove them if present\nconst cleanJson = aiOutput.replace(/```json/g, '').replace(/```/g, '').trim();\n\n// Returns the array directly. n8n will treat this as multiple items.\nreturn JSON.parse(cleanJson);"
+      },
+      "id": "460c6bc0-9ee3-477a-a112-25031bba5a10",
+      "name": "Parse JSON",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        624,
+        480
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "19PfWDO8VohCWY7AxYSSRvPbyrQDTmNG9l-QLh7lN1Z8",
+          "mode": "list",
+          "cachedResultName": "Strategic SEO compass",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19PfWDO8VohCWY7AxYSSRvPbyrQDTmNG9l-QLh7lN1Z8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1148623062,
+          "mode": "list",
+          "cachedResultName": "Add Google sheets in this workflow for it's stora...",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19PfWDO8VohCWY7AxYSSRvPbyrQDTmNG9l-QLh7lN1Z8/edit#gid=1148623062"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "keyword",
+              "displayName": "keyword",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "intent",
+              "displayName": "intent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "funnel_stage",
+              "displayName": "funnel_stage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "content_idea",
+              "displayName": "content_idea",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "33d0bfa7-aa0a-46fb-bbd4-7023abd548dd",
+      "name": "Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        912,
+        480
+      ],
+      "typeVersion": 4.5,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YpTnOTcX4gd9Mdkh",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "**FINAL STEP**\n1. Double click Google Sheets node\n2. Select your Credential\n3. Select your Sheet\n4. Select 'Map Automatically'",
+        "height": 396,
+        "color": 5
+      },
+      "id": "bf2234c8-c354-4ffa-81d1-361c8b933037",
+      "name": "Instructions",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        864,
+        304
+      ],
+      "typeVersion": 1
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Set Ideal Customer Profile (ICP)": {
+      "main": [
+        [
+          {
+            "node": "Aggregate for AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate for AI": {
+      "main": [
+        [
+          {
+            "node": "AI Strategist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Strategist": {
+      "main": [
+        [
+          {
+            "node": "Parse JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "Set Ideal Customer Profile (ICP)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Strategist",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse JSON": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d1b9bdb2-552b-4f02-8cce-b95153d64ba3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "aa0fe391a5f8d0d0d337b84dc8b3db15d3f4068cefd6bccf36eeebc1acc532f4"
+  },
+  "id": "tRrVCcsyeyDCk6AI",
+  "tags": []
+}

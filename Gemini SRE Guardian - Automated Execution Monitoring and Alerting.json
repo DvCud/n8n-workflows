@@ -1,0 +1,329 @@
+{
+  "name": "Gemini SRE Guardian - Automated Execution Monitoring and Alerting",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "id": "7fb5f883-9f01-4d61-8384-8034a941a07c",
+      "name": "Every 1 Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "baseUrl",
+              "value": "https://karmicworker1.app.n8n.cloud",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "5d9911ed-3021-45cf-a354-e665e74d609d",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.baseUrl }}/api/v1/executions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "n8nApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "includeData",
+              "value": "true"
+            },
+            {
+              "name": "limit",
+              "value": "50"
+            },
+            {
+              "name": "status",
+              "value": "error"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "94e368aa-0f7f-4a7e-bf3a-0fbc6af9e74c",
+      "name": "Fetch Failed Executions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json }}",
+        "options": {
+          "systemMessage": "=You are a Senior Site Reliability Engineer for an n8n automation system.\n\nHere is a JSON dump of the last 50 failed workflow executions from our instance:\n\n{{ JSON.stringify($json) }}\n\nYour Job:\n1. Analyze the errors. Are they transient (network blips) or logic errors?\n2. Identify if one specific workflow is spamming errors.\n3. Decide the system health status.\n\nCRITICAL OUTPUT REQUIREMENT:\nYou must respond ONLY with a valid JSON object. Do not add markdown formatting, backticks, or text outside the JSON.\n\nStructure:\n{\n  \"status\": \"HEALTHY\" | \"WARNING\" | \"CRITICAL\",\n  \"headline\": \"Short summary of what is happening\",\n  \"deep_dive\": \"A detailed technical explanation of the root cause.\",\n  \"action_needed\": \"What should the human administrator do?\"\n}"
+        }
+      },
+      "id": "ea330801-6813-442d-813b-f28f14c3a23c",
+      "name": "SRE Analysis Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        672,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "69f81f1a-7636-4481-b3b2-e8d2e1c7fd43",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        752,
+        224
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "UlIRUkJFc0cVP7QN",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json.output;\n\n// Remove markdown code blocks if present\nlet cleanedOutput = input.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n\n// Parse the JSON\nconst parsed = JSON.parse(cleanedOutput);\n\nreturn [{ json: parsed }];"
+      },
+      "id": "5590b46c-0b81-4d22-bd30-6fb791a84fcf",
+      "name": "Parse JSON Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "CRITICAL",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "CRITICAL"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "WARNING",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "WARNING"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3c8138be-bc54-46ca-8be0-6209c27688a0",
+      "name": "Route by Status",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        1248,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "<__PLACEHOLDER_VALUE__Alert webhook URL__>",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "69d9d49b-7de4-42ee-8605-f271fe09904d",
+      "name": "Send Critical Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1472,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "To configure the \"Alert webhook URL\" parameter in your Send Critical Alert node, you have three excellent options depending on where you want to receive the notification.\n\n1. The Instant Option: ntfy.sh (Recommended for Testing)\nThis is the fastest way to get alerts on your phone or desktop without creating an account or managing API keys.\n\nWhat to put in the URL: https://ntfy.sh/ + any_unique_topic_name\nExample: https://ntfy.sh/gemini_sre_guardian_007\n\nHow to use:\nEnter that URL into the node.\nDownload the ntfy app on your phone (Android/iOS) or open that URL in your browser.\nSubscribe to the topic name (e.g., gemini_sre_guardian_007).\nWhen Gemini detects a CRITICAL error, your phone will buzz immediately.\n\n2. The Gamer/Dev Option: Discord\nIf you use Discord, this is robust and completely free.\n\nHow to get the URL:\nRight-click on a text channel in your server > Edit Channel.\nGo to Integrations > Webhooks.\nClick New Webhook, give it a name (e.g., \"SRE Bot\"), and click Copy Webhook URL.\nPaste that URL directly into the n8n HTTP Request node.\n\n3. The Professional Option: Slack\nIf you are doing this for a company or a serious project.\n\nHow to get the URL:\nGo to api.slack.com/apps and create a new app.\nEnable Incoming Webhooks.\nClick Add New Webhook to Workspace and pick a channel (e.g., #alerts).\nCopy the https://hooks.slack.com/services/... URL.\nPaste that URL into the node.",
+        "height": 640,
+        "width": 800
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1712,
+        -224
+      ],
+      "typeVersion": 1,
+      "id": "e4cf8ef3-fbd0-49cd-96be-46ca13e83f54",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "The n8n API credential is automatically available in your n8n instance and authenticates requests to your own n8n API. Here's how to set it up:\n\nHow to Create the n8n API Credential\nGo to Credentials: Click on your profile icon (top-right) → Credentials\n\nCreate New Credential: Click \"Add Credential\" button\n\nSearch for \"n8n\": Type \"n8n\" in the search box and select \"n8n API\"\n\nConfigure the credential:\n\nAPI Key: Generate an API key from your n8n instance\nGo to Settings → API → Create API Key\nGive it a name (e.g., \"SRE Guardian\")\nCopy the generated key\nBase URL: Enter your n8n instance URL: https://<name>.app.n8n.cloud\nSave: Click \"Save\" to store the credential\n\nSelect in the workflow:\n\nOpen the \"Fetch Failed Executions\" node\nUnder Authentication, it's already set to \"Predefined Credential Type\" → \"n8n API\"\nSelect your newly created credential from the dropdown",
+        "height": 464,
+        "width": 656
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        160
+      ],
+      "typeVersion": 1,
+      "id": "5fe9feb1-c546-4bb8-91cd-21459133f271",
+      "name": "Sticky Note1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every 1 Hour": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Fetch Failed Executions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Failed Executions": {
+      "main": [
+        [
+          {
+            "node": "SRE Analysis Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "SRE Analysis Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SRE Analysis Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse JSON Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse JSON Output": {
+      "main": [
+        [
+          {
+            "node": "Route by Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Status": {
+      "main": [
+        [
+          {
+            "node": "Send Critical Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "573e8d1d-abc7-4f39-8dd8-6d27255fab02",
+  "meta": {
+    "instanceId": "192cb3f736e87d9c71b7323ba9860cbe35ba9c18dc08a37c3d539f4c38367692"
+  },
+  "id": "bjzeAXfP9lJC0699",
+  "tags": []
+}

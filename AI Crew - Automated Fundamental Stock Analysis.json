@@ -1,0 +1,684 @@
+{
+  "name": "AI Crew - Automated Fundamental Stock Analysis",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "stock-analysis",
+        "options": {}
+      },
+      "id": "d6de0d28-c9a9-45ea-8c59-197c12520067",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1936,
+        512
+      ],
+      "webhookId": "stock-analysis"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "stock_symbol",
+              "name": "stock_symbol",
+              "value": "={{ $json.body.symbol || 'AAPL' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b9a8528f-e148-4598-82bb-dd68205ab121",
+      "name": "Extract Stock Symbol",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        -1712,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://www.alphavantage.co/query?function=OVERVIEW&symbol={{ $json.stock_symbol }}&apikey=YOUR_ALPHA_VANTAGE_API_KEY",
+        "options": {}
+      },
+      "id": "14434263-ce61-4841-af16-c903fbef94b1",
+      "name": "Fetch Company Overview",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1488,
+        124
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://www.alphavantage.co/query?function=INCOME_STATEMENT&symbol={{ $json.stock_symbol }}&apikey=YOUR_ALPHA_VANTAGE_API_KEY",
+        "options": {}
+      },
+      "id": "690753b3-2120-4bf7-a615-40be57852a01",
+      "name": "Fetch Income Statement",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1264,
+        316
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://www.alphavantage.co/query?function=BALANCE_SHEET&symbol={{ $json.stock_symbol }}&apikey=YOUR_ALPHA_VANTAGE_API_KEY",
+        "options": {}
+      },
+      "id": "895d5506-2b8a-400e-9697-78b8b2acbc0d",
+      "name": "Fetch Balance Sheet",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1488,
+        652
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers={{ $json.stock_symbol }}&apikey=YOUR_ALPHA_VANTAGE_API_KEY",
+        "options": {}
+      },
+      "id": "d6d45c83-88da-44b8-9821-82b5b21aacc0",
+      "name": "Fetch News & Sentiment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1488,
+        844
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "options": {}
+      },
+      "id": "bface7f1-fd95-4dd1-a7f7-ed2ceef04c3d",
+      "name": "Merge Financial Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -1040,
+        316
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "combined_data",
+              "name": "combined_data",
+              "value": "={{ JSON.stringify({\n  overview: $('Fetch Company Overview').item.json,\n  income_statement: $('Fetch Income Statement').item.json,\n  balance_sheet: $('Fetch Balance Sheet').item.json,\n  news: $('Fetch News & Sentiment').item.json,\n  symbol: $json.stock_symbol\n}) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "45e30897-eb9e-4812-b712-ae19d04cc5b2",
+      "name": "Prepare Analysis Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        -816,
+        316
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Senior Financial Analyst AI Agent specializing in fundamental stock analysis. Analyze the following data for {{ $json.symbol }}:\n\nData: {{ $json.combined_data }}\n\nProvide a comprehensive analysis covering:\n1. Company Overview & Business Model\n2. Financial Health (Revenue, Profitability, Debt Ratios)\n3. Key Financial Metrics (P/E, EPS, ROE, ROA)\n4. Growth Trends (YoY comparisons)\n5. Competitive Position\n\nBe specific with numbers and percentages. Format as structured sections.",
+        "options": {}
+      },
+      "id": "0962f5d7-10ab-46c4-b00d-6152ceebb3c8",
+      "name": "AI Agent: Financial Analyst",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        -592,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "maxOutputTokens": 2048,
+          "temperature": 0.3,
+          "topK": 40,
+          "topP": 0.95
+        }
+      },
+      "id": "e3898ecb-3d25-4980-b740-f354d81695d2",
+      "name": "Google Gemini Chat Model - Financial",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        144
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "PZCOgGSQiEHJfz0x",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Market Research AI Agent specializing in competitive analysis and market trends. Based on this news sentiment data:\n\n{{ $json.combined_data }}\n\nProvide:\n1. Market Sentiment Analysis (bullish/bearish indicators)\n2. Recent News Impact Assessment\n3. Industry Trends Affecting the Company\n4. Competitive Landscape\n5. Risk Factors\n\nBe objective and cite specific news items when relevant.",
+        "options": {}
+      },
+      "id": "cd999e51-c5b0-4d70-b0fc-90890eb4f40f",
+      "name": "AI Agent: Market Researcher",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        -592,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Risk Assessment AI Agent. Analyze this financial data:\n\n{{ $json.combined_data }}\n\nProvide a detailed risk assessment:\n1. Financial Risks (debt levels, liquidity, solvency)\n2. Operational Risks\n3. Market Risks\n4. Regulatory/Legal Risks\n5. Risk Rating (Low/Medium/High) with justification\n\nUse specific financial ratios and thresholds.",
+        "options": {}
+      },
+      "id": "e833681c-babc-41bb-8e93-3596378ef9fb",
+      "name": "AI Agent: Risk Assessor",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        -592,
+        616
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "maxOutputTokens": 2048,
+          "temperature": 0.3,
+          "topK": 40,
+          "topP": 0.95
+        }
+      },
+      "id": "24ea8f0f-64bc-45f6-aab4-05bff90fae30",
+      "name": "Google Gemini Chat Model - Risk",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        840
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "PZCOgGSQiEHJfz0x",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "options": {}
+      },
+      "id": "bcabd763-5509-45f3-b254-335bcd94db3e",
+      "name": "Merge Agent Outputs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -240,
+        124
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "financial_analysis",
+              "name": "financial_analysis",
+              "value": "={{ $('AI Agent: Financial Analyst').item.json.output }}",
+              "type": "string"
+            },
+            {
+              "id": "market_research",
+              "name": "market_research",
+              "value": "={{ $('AI Agent: Market Researcher').item.json.output }}",
+              "type": "string"
+            },
+            {
+              "id": "risk_assessment",
+              "name": "risk_assessment",
+              "value": "={{ $('AI Agent: Risk Assessor').item.json.output }}",
+              "type": "string"
+            },
+            {
+              "id": "stock_symbol",
+              "name": "stock_symbol",
+              "value": "={{ $json.stock_symbol }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9d1bb634-99c3-4181-b599-e59a198b21e9",
+      "name": "Prepare Final Synthesis",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        -16,
+        124
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Chief Investment Officer AI Agent responsible for synthesizing all analyst reports into a final investment recommendation.\n\nStock Symbol: {{ $json.stock_symbol }}\n\nFINANCIAL ANALYSIS:\n{{ $json.financial_analysis }}\n\nMARKET RESEARCH:\n{{ $json.market_research }}\n\nRISK ASSESSMENT:\n{{ $json.risk_assessment }}\n\nCreate a comprehensive executive summary with:\n\n1. EXECUTIVE SUMMARY (2-3 paragraphs)\n2. INVESTMENT RATING (Strong Buy/Buy/Hold/Sell/Strong Sell)\n3. TARGET PRICE RANGE (with rationale)\n4. KEY STRENGTHS (top 5)\n5. KEY WEAKNESSES (top 5)\n6. SWOT ANALYSIS\n7. INVESTMENT THESIS (3-4 paragraphs)\n8. RISK-REWARD PROFILE\n9. RECOMMENDATION FOR DIFFERENT INVESTOR PROFILES (Conservative/Moderate/Aggressive)\n10. KEY METRICS TABLE\n\nMake it actionable, professional, and data-driven. Use markdown formatting.",
+        "options": {}
+      },
+      "id": "021033e1-8f42-4b0e-a199-fca899a23c98",
+      "name": "AI Agent: Chief Investment Officer",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        208,
+        124
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "report_generated_at",
+              "name": "report_generated_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "stock_symbol",
+              "name": "stock_symbol",
+              "value": "={{ $json.stock_symbol }}",
+              "type": "string"
+            },
+            {
+              "id": "final_report",
+              "name": "final_report",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            },
+            {
+              "id": "raw_data",
+              "name": "raw_data",
+              "value": "={{ JSON.stringify({\n  financial_analysis: $json.financial_analysis,\n  market_research: $json.market_research,\n  risk_assessment: $json.risk_assessment\n}, null, 2) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9b4f9513-7bab-42f5-abe7-2448c38bc7e6",
+      "name": "Format Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        560,
+        124
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"stock_symbol\": \"{{ $json.stock_symbol }}\",\n  \"report_generated_at\": \"{{ $json.report_generated_at }}\",\n  \"executive_report\": \"{{ $json.final_report }}\",\n  \"detailed_analysis\": {{ $json.raw_data }}\n}",
+        "options": {}
+      },
+      "id": "4f3c1d50-c5aa-4a1c-81f0-5da59789c6fd",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        784,
+        124
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "error-check",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notExists"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ce1127f2-3897-4e72-af1f-e3787461f7c8",
+      "name": "Check API Errors",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1264,
+        124
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"Failed to fetch stock data. Please check the symbol and API key.\",\n  \"details\": \"{{ $json }}\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "2f44d62d-e939-4a51-a9e5-a2d56778fe96",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -1040,
+        28
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "workflow_status",
+              "name": "workflow_status",
+              "value": "Started analysis for {{ $json.stock_symbol }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "16d8b3fd-6def-41e8-be3c-d4f174c4541b",
+      "name": "Log Workflow Start",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        -1488,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-sonnet-4-5-20250929",
+          "cachedResultName": "Claude Sonnet 4.5"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        128,
+        496
+      ],
+      "id": "44c15ee6-62df-456a-9eed-9e1d58ebe5c6",
+      "name": "Anthropic Chat Model"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Stock Symbol",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model - Financial": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent: Financial Analyst",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model - Risk": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent: Risk Assessor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Stock Symbol": {
+      "main": [
+        [
+          {
+            "node": "Fetch Company Overview",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Income Statement",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Balance Sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch News & Sentiment",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Workflow Start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Company Overview": {
+      "main": [
+        [
+          {
+            "node": "Check API Errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Income Statement": {
+      "main": [
+        [
+          {
+            "node": "Merge Financial Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Check API Errors": {
+      "main": [
+        [
+          {
+            "node": "Merge Financial Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Financial Data": {
+      "main": [
+        [
+          {
+            "node": "Prepare Analysis Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Analysis Data": {
+      "main": [
+        [
+          {
+            "node": "AI Agent: Financial Analyst",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AI Agent: Market Researcher",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AI Agent: Risk Assessor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent: Financial Analyst": {
+      "main": [
+        [
+          {
+            "node": "Merge Agent Outputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent: Market Researcher": {
+      "main": [
+        [
+          {
+            "node": "Merge Agent Outputs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Agent Outputs": {
+      "main": [
+        [
+          {
+            "node": "Prepare Final Synthesis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Final Synthesis": {
+      "main": [
+        [
+          {
+            "node": "AI Agent: Chief Investment Officer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent: Chief Investment Officer": {
+      "main": [
+        [
+          {
+            "node": "Format Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Final Output": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent: Market Researcher",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent: Chief Investment Officer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e4c26d1b-6bdf-46a2-ae70-34d191baf0fd",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "aa0fe391a5f8d0d0d337b84dc8b3db15d3f4068cefd6bccf36eeebc1acc532f4"
+  },
+  "id": "Pc2QrfYVlcpm18kj",
+  "tags": []
+}

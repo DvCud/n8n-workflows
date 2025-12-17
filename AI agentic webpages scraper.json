@@ -1,0 +1,335 @@
+{
+  "name": "AI agentic webpages scraper",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "url",
+              "value": "https://example.com",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "is_dynamic",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "3",
+              "name": "user_query",
+              "value": "Extract the main title and price",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "af451ad9-1af0-4703-be88-9ebb2663b9d5",
+      "name": "Input Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -752,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.is_dynamic }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "662bb2a8-69f9-47bd-a307-0849a5237ddc",
+      "name": "Is Dynamic?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -544,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          },
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "1748ee79-d8d3-45e7-9dcb-e87d10fef6de",
+      "name": "HTTP Request (Static)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -256,
+        -32
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "maxTries": 3,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "9186681a-0cf1-4706-88b4-b8dcfb39554e",
+      "name": "PLACEHOLDER: Dynamic Scraper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -256,
+        208
+      ],
+      "notesInFlow": true,
+      "notes": "Replace this node with 'n8n-nodes-puppeteer' if installed, or use a scraping API here."
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn items.map(item => {\n  if (item.json.error) {\n    return { json: { error: item.json.message } };\n  }\n  \n  let html = item.json.data || item.json.body || item.json.content || \"\";\n  \n  html = html.replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/gim, \"\");\n  html = html.replace(/<style\\b[^>]*>[\\s\\S]*?<\\/style>/gim, \"\");\n  html = html.replace(/<svg\\b[^>]*>[\\s\\S]*?<\\/svg>/gim, \"\");\n  html = html.replace(/<!--[\\s\\S]*?-->/gim, \"\");\n  \n  return {\n    json: {\n      ...item.json,\n      clean_html: html\n    }\n  };\n});"
+      },
+      "id": "7f09bda8-2aaf-40fe-8a52-51e408b680d8",
+      "name": "Sanitize HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "html": "={{ $json.clean_html }}",
+        "options": {}
+      },
+      "id": "9d602838-ddef-490d-89fe-2246e1c8b179",
+      "name": "Convert to Markdown",
+      "type": "n8n-nodes-base.markdown",
+      "typeVersion": 1,
+      "position": [
+        416,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "messages": {
+          "messageValues": [
+            {
+              "message": "={{ $json.data }}"
+            }
+          ]
+        }
+      },
+      "id": "f42be141-5dfa-4c68-bcb5-cd9e6a2e3d74",
+      "name": "Basic LLM Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        624,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "6d7b508b-cc75-4c54-a030-f1d40180496d",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        624,
+        288
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "PZCOgGSQiEHJfz0x",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "options": {}
+      },
+      "id": "09991522-0151-4e73-93a5-dedb96bd38ad",
+      "name": "Merge Paths",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -32,
+        80
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "38fba581-4099-46f8-9c01-be7d26884398",
+      "name": "When clicking \"Execute Workflow\"",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -976,
+        80
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Input Configuration": {
+      "main": [
+        [
+          {
+            "node": "Is Dynamic?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Dynamic?": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request (Static)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PLACEHOLDER: Dynamic Scraper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request (Static)": {
+      "main": [
+        [
+          {
+            "node": "Merge Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PLACEHOLDER: Dynamic Scraper": {
+      "main": [
+        [
+          {
+            "node": "Merge Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Paths": {
+      "main": [
+        [
+          {
+            "node": "Sanitize HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sanitize HTML": {
+      "main": [
+        [
+          {
+            "node": "Convert to Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to Markdown": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking \"Execute Workflow\"": {
+      "main": [
+        [
+          {
+            "node": "Input Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "4ea0e352-09de-4848-b748-57ef6554f994",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "aa0fe391a5f8d0d0d337b84dc8b3db15d3f4068cefd6bccf36eeebc1acc532f4"
+  },
+  "id": "MBChx5u3BAR16ruA",
+  "tags": []
+}

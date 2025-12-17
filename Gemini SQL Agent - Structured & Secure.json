@@ -1,0 +1,471 @@
+{
+  "name": "Gemini SQL Agent - Structured & Secure",
+  "nodes": [
+    {
+      "parameters": {
+        "modelName": "models/gemini-1.5-pro",
+        "options": {
+          "temperature": 0
+        }
+      },
+      "id": "c401fcc4-7191-492a-8794-c54505a535d1",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "position": [
+        -800,
+        496
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "cyFkDSxrcQOBf2RT",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 10
+      },
+      "id": "8a42e48d-cd28-4d67-8f61-54a0c76466e5",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "position": [
+        -640,
+        496
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "d80a41c2-c375-4798-aa3c-820700c68be7",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "position": [
+        -1776,
+        464
+      ],
+      "webhookId": "c308dec7-655c-4b79-832e-991bd8ea891f",
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "agent": "conversationalAgent",
+        "promptType": "define",
+        "text": "=You are a high-level SQL Expert. Your job is to convert the user's natural language request into a MySQL query based *strictly* on the provided schema.\n\n### SCHEMA\n{{ $json.data }}\n\n### USER REQUEST\n{{ $('Chat Trigger').item.json.chatInput }}\n\n### CRITICAL RULES\n1. You must output valid JSON only. Do not output markdown blocks or conversational text outside the JSON.\n2. The JSON structure must be: { \"thought\": \"your reasoning here\", \"sql\": \"THE_SQL_QUERY\", \"needs_db\": true/false }\n3. If the user just says \"hello\" or asks a general question, set \"needs_db\": false and \"sql\": null.\n4. NEVER generate SQL that modifies the database (No INSERT, UPDATE, DELETE, DROP, ALTER). Read-only SELECT only.\n",
+        "options": {
+          "systemMessage": "You are a helpful SQL Assistant powered by Google Gemini. You always think step-by-step before generating code."
+        }
+      },
+      "id": "92b2ea3e-5393-4ab3-af89-9f6b87ef4fa7",
+      "name": "AI Agent (Gemini)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        -800,
+        304
+      ],
+      "typeVersion": 1.6
+    },
+    {
+      "parameters": {
+        "content": "## 🧠 The Brain \nGoogle Gemini 1.5 Pro. \n\n**Why?**\n1. **Context Window:** It can ingest massive database schemas without forgetting details.\n2. **Reasoning:** It follows the \"System Prompt\" rules strictly to output **JSON**, not just text.",
+        "height": 272.7163029525419,
+        "width": 372.2474021297394,
+        "color": 5
+      },
+      "id": "f1cf0000-544e-4d04-b192-f0b42d04061f",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -848,
+        16
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "fileSelector": "./chinook_mysql.json",
+        "options": {}
+      },
+      "id": "e8fdd9fb-3a03-4468-988f-f71ea58c10e9",
+      "name": "Load Schema File",
+      "type": "n8n-nodes-base.readWriteFile",
+      "position": [
+        -1504,
+        464
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "options": {}
+      },
+      "id": "ca4418c0-225a-460e-8d04-a78fd366816b",
+      "name": "Extract Schema",
+      "type": "n8n-nodes-base.extractFromFile",
+      "position": [
+        -1280,
+        464
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "42abd24e-419a-47d6-bc8b-7146dd0b8314",
+              "name": "sessionId",
+              "type": "string",
+              "value": "={{ $('Chat Trigger').first().json.sessionId }}"
+            },
+            {
+              "id": "f78c57d9-df13-43c7-89a7-5387e528107e",
+              "name": "chatinput",
+              "type": "string",
+              "value": "={{ $('Chat Trigger').first().json.chatInput }}"
+            },
+            {
+              "id": "e42b39eb-dfbd-48d9-94ed-d658bdd41454",
+              "name": "schema",
+              "type": "string",
+              "value": "={{ $json.data }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e50e619e-9f04-4889-a7ee-6dd65e669838",
+      "name": "Prepare Context",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -1056,
+        464
+      ],
+      "executeOnce": true,
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the JSON output from Gemini\n// This replaces the old \"Regex\" method which was brittle.\n\ntry {\n  const aiOutput = $input.item.json.output;\n  // Remove markdown code blocks if Gemini added them despite instructions\n  const cleanJson = aiOutput.replace(/```json/g, '').replace(/```/g, '');\n  const parsed = JSON.parse(cleanJson);\n  \n  return {\n    json: {\n      ...parsed\n    }\n  }\n} catch (error) {\n  return {\n    json: {\n      error: \"Failed to parse AI response\",\n      raw_output: $input.item.json.output,\n      needs_db: false\n    }\n  }\n}"
+      },
+      "id": "3f0a539f-b9bc-4c7e-983d-54211bfc81e8",
+      "name": "Parse AI JSON",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -384,
+        304
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "2963d04d-9d79-49f9-b52a-dc8732aca781",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.needs_db }}",
+              "rightValue": ""
+            },
+            {
+              "id": "safety_check",
+              "operator": {
+                "type": "string",
+                "operation": "notContains",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.sql.toUpperCase() }}",
+              "rightValue": "DROP"
+            },
+            {
+              "id": "safety_check_2",
+              "operator": {
+                "type": "string",
+                "operation": "notContains",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.sql.toUpperCase() }}",
+              "rightValue": "DELETE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "40b21775-6831-4e69-851b-c3345d281d73",
+      "name": "Guardrail (Safety Check)",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -160,
+        304
+      ],
+      "typeVersion": 2.2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.sql }}",
+        "options": {}
+      },
+      "id": "d8058320-4c50-467c-8fe2-2d7d435ad5b5",
+      "name": "Execute SQL",
+      "type": "n8n-nodes-base.mySql",
+      "position": [
+        96,
+        176
+      ],
+      "typeVersion": 2.4,
+      "credentials": {
+        "mySql": {
+          "id": "huxUCi4a9d4n9lJI",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 🛡️ Security Guardrail\nThis `IF` node is critical.\n\n1. Checks if `needs_db` is true.\n2. **Scans for Keywords:** It ensures the SQL does not contain `DROP`, `DELETE`, or `ALTER`. \n\nIf a malicious query is detected, it routes to false and protects your database.",
+        "height": 223.5359196859341,
+        "width": 386.4137839352125,
+        "color": 6
+      },
+      "id": "104fdcb6-e374-40b2-a82f-da8fcccfd30c",
+      "name": "Sticky Note4",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -320,
+        -16
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f944d21f-6aac-4842-8926-4108d6cad4bf",
+              "name": "sqloutput",
+              "type": "string",
+              "value": "={{ Object.keys($jmespath($input.all(),'[].json')[0]).join(' | ') }} \n{{ ($jmespath($input.all(),'[].json')).map(obj => Object.values(obj).join(' | ')).join('\\n') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b5a6946e-f475-4ff3-8706-5abc4543cd8b",
+      "name": "Format Results",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        304,
+        176
+      ],
+      "executeOnce": true,
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "aa55e186-1535-4923-aee4-e088ca69575b",
+              "name": "output",
+              "type": "string",
+              "value": "={{ $('Parse AI JSON').item.json.thought }}\n\n### Data:\n```\n{{ $json.sqloutput }}\n```"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f883da45-be6b-4373-b97f-dc8a65cd06ac",
+      "name": "Final Answer",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        528,
+        304
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "fb67a637-f592-4f78-bc78-5cc3cab55ca8",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "position": [
+        288,
+        400
+      ],
+      "typeVersion": 3
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent (Gemini)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent (Gemini)",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Schema File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent (Gemini)": {
+      "main": [
+        [
+          {
+            "node": "Parse AI JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Schema File": {
+      "main": [
+        [
+          {
+            "node": "Extract Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Schema": {
+      "main": [
+        [
+          {
+            "node": "Prepare Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Context": {
+      "main": [
+        [
+          {
+            "node": "AI Agent (Gemini)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI JSON": {
+      "main": [
+        [
+          {
+            "node": "Guardrail (Safety Check)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardrail (Safety Check)": {
+      "main": [
+        [
+          {
+            "node": "Execute SQL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Execute SQL": {
+      "main": [
+        [
+          {
+            "node": "Format Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Results": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Final Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "4aa9aefe-c043-47ff-8f31-cea561759825",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7eb3e379e33b6869c7c63e32bf4962cc78f42563d5d4018e32d8b16172499c6d"
+  },
+  "id": "a4TxUSdMyKrSWDMB",
+  "tags": []
+}

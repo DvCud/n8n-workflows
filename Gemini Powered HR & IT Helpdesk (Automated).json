@@ -1,0 +1,593 @@
+{
+  "name": "Gemini Powered HR & IT Helpdesk (Automated)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 1. Automated Ingestion Layer\n\nThe system automatically checks for document updates every week. No manual clicking required.\n\nWe also use **Gemini Embeddings** for state-of-the-art vectorization.",
+        "height": 480,
+        "width": 800,
+        "color": 7
+      },
+      "id": "aadbd591-a59e-43af-8b5f-1aad9872f82c",
+      "name": "Sticky Note - Ingestion",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2768,
+        -64
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtHour": 2
+            }
+          ]
+        }
+      },
+      "id": "b3aa60b9-dd4e-4c4e-92b9-3720f67a1ae8",
+      "name": "Weekly Update Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        -2704,
+        240
+      ],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "url": "https://s3.amazonaws.com/scschoolfiles/656/employee_handbook_print_1.pdf",
+        "options": {}
+      },
+      "id": "9cec490e-d78d-4ada-bd09-617b7c4c2c7a",
+      "name": "Download Handbook",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -2480,
+        240
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "id": "6e557ef6-bc6c-4be7-b3a0-cabb88e726f1",
+      "name": "Extract Text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "position": [
+        -2288,
+        240
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "options": {}
+      },
+      "id": "f14de408-b6e9-4201-81f0-02240641aea2",
+      "name": "Update Vector DB",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "position": [
+        -1888,
+        240
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {},
+      "id": "c0c5fcc8-f661-49c2-b34c-c035715b6e58",
+      "name": "Google Gemini Embeddings",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "position": [
+        448,
+        736
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "cyFkDSxrcQOBf2RT",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chunkSize": 1500,
+        "chunkOverlap": 200,
+        "options": {}
+      },
+      "id": "7ae24864-9f35-4900-9037-42b73c84d39a",
+      "name": "Recursive Character Text Splitter",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "position": [
+        -1792,
+        736
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $('Extract Text').item.json.text }}",
+        "options": {}
+      },
+      "id": "41a9b3d7-f99c-44cf-9214-fae6eafff1b6",
+      "name": "Default Data Loader",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "position": [
+        -1680,
+        544
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## 2. The Gemini Brain (Reasoning Agent)\n\nWe use the Agent architecture so it can decide *which* tool to use:\n1. **Vector Store:** For internal policy questions.\n2. **Google Search (Optional):** You can add this for external IT status checks.\n\nNote: We kept the Postgres Memory so the bot remembers context.",
+        "height": 984,
+        "width": 872,
+        "color": 5
+      },
+      "id": "9bda54b8-6e9a-491c-b016-f7db339e853a",
+      "name": "Sticky Note - Brain",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -160,
+        -64
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "56956885-dabc-48e4-8e8a-fb289d47571f",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "position": [
+        -1264,
+        336
+      ],
+      "webhookId": "Telegram_Trigger_Webhook",
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.text }}",
+        "options": {
+          "systemMessage": "=You are a senior HR & IT Assistant powered by Gemini. \n\nYour Goal: Answer employee questions accurately using the available tools. \n\nInstructions:\n1. ALWAYS check the 'HR Policies' tool first for questions about rules, holidays, or IT procedures.\n2. If the user sends a voice note, it has been transcribed for you.\n3. Be concise but empathetic.\n4. If you cannot find the answer in the tools, admit it. Do not make up policies."
+        }
+      },
+      "id": "a625c4ae-8b82-47e5-9dbe-e17ffd02cba8",
+      "name": "Gemini AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        -64,
+        336
+      ],
+      "typeVersion": 1.7
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-pro",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "c6cbe078-eba4-44a0-98d7-d4ffeca2052a",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "position": [
+        -32,
+        576
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "cyFkDSxrcQOBf2RT",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}"
+      },
+      "id": "efb51910-13af-4f75-8364-8b4ca9de25c4",
+      "name": "Postgres Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "position": [
+        144,
+        576
+      ],
+      "typeVersion": 1.3
+    },
+    {
+      "parameters": {
+        "name": "hr_policy_documents",
+        "description": "Call this tool to search for internal company policies, handbooks, and IT guides."
+      },
+      "id": "06840c97-ef36-4a58-90f5-720c6ce55bd8",
+      "name": "Vector Store Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolVectorStore",
+      "position": [
+        304,
+        448
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "f5ab2b91-f8da-451e-a3c7-35dbe3b38a20",
+      "name": "Postgres Vector Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "position": [
+        448,
+        576
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').first().json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "id": "717d79a8-d555-42bd-be10-426999226fb1",
+      "name": "Send Reply",
+      "type": "n8n-nodes-base.telegram",
+      "position": [
+        848,
+        336
+      ],
+      "typeVersion": 1.2,
+      "webhookId": "f972a8ec-77c6-475f-a1d5-7f9f5555a0e9"
+    },
+    {
+      "parameters": {
+        "content": "## 3. Handling Audio (Transcription)\nFor now, we keep the OpenAI Whisper node or you can swap to **Groq** (using HTTP Request) for faster/cheaper transcription. \n\nThis ensures that if an employee is driving, they can just speak their problem.",
+        "height": 764,
+        "width": 808,
+        "color": 4
+      },
+      "id": "cfccbebe-c083-4571-b1ab-aee56574f408",
+      "name": "Sticky Note - Audio",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1296,
+        -16
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "version": 2,
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "1",
+                    "operator": {
+                      "type": "array",
+                      "operation": "contains",
+                      "rightType": "any"
+                    },
+                    "leftValue": "={{ $json.message.keys() }}",
+                    "rightValue": "voice"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "voice"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "version": 2,
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "2",
+                    "operator": {
+                      "type": "array",
+                      "operation": "contains",
+                      "rightType": "any"
+                    },
+                    "leftValue": "={{ $json.message.keys() }}",
+                    "rightValue": "text"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "text"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d71d3ed3-5765-4b43-8258-1f89d0d32629",
+      "name": "Verify Message Type",
+      "type": "n8n-nodes-base.switch",
+      "position": [
+        -1040,
+        336
+      ],
+      "typeVersion": 3.2
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.voice.file_id }}",
+        "additionalFields": {}
+      },
+      "id": "228c7370-4e8c-4084-a118-e25d8d42f1d7",
+      "name": "Get Telegram File",
+      "type": "n8n-nodes-base.telegram",
+      "position": [
+        -832,
+        496
+      ],
+      "typeVersion": 1.2,
+      "webhookId": "41ffff61-26a9-4e64-bc73-36572ef2533e"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "id": "2c20da73-a26b-4a0b-a16a-c71cbc01e7b3",
+      "name": "Transcribe Audio",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [
+        -608,
+        496
+      ],
+      "typeVersion": 1.8
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "text-assign",
+              "name": "text",
+              "type": "string",
+              "value": "={{ $json.message.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2cdad352-8ecb-4394-aaa5-988da7473fd3",
+      "name": "Set Text",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -608,
+        288
+      ],
+      "typeVersion": 3.4
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Download Handbook": {
+      "main": [
+        [
+          {
+            "node": "Extract Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Text": {
+      "main": [
+        [
+          {
+            "node": "Update Vector DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Update Vector DB",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Update Vector DB",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Character Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Verify Message Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Message Type": {
+      "main": [
+        [
+          {
+            "node": "Get Telegram File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Telegram File": {
+      "main": [
+        [
+          {
+            "node": "Transcribe Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe Audio": {
+      "main": [
+        [
+          {
+            "node": "Gemini AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Text": {
+      "main": [
+        [
+          {
+            "node": "Gemini AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gemini AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vector Store Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Gemini AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Vector Store": {
+      "ai_vectorStore": [
+        [
+          {
+            "node": "Vector Store Tool",
+            "type": "ai_vectorStore",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Gemini AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Update Trigger": {
+      "main": [
+        [
+          {
+            "node": "Download Handbook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8e56e4a9-4e5f-4239-91dc-cf580c011628",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7eb3e379e33b6869c7c63e32bf4962cc78f42563d5d4018e32d8b16172499c6d"
+  },
+  "id": "rBxtDAUdFHbyyASL",
+  "tags": []
+}

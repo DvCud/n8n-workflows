@@ -1,0 +1,892 @@
+{
+  "name": "Global Tax Research Assistant with RAG and Safety Guards",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "bc991cbc-b7d7-4e8a-8fc3-e68ad39ac887",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        2784,
+        288
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "UlIRUkJFc0cVP7QN",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.final_answer }}",
+        "options": {
+          "systemMessage": "You are a simple response agent. Return the exact text provided to you without modification."
+        }
+      },
+      "id": "1977bc70-d41b-4819-ab08-859b66559206",
+      "name": "Return Final Answer",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        2720,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const refusalMessage = \"Sorry for the inconvenience, but I'm not able to provide a definitive answer on this. Please consult a qualified tax professional in your jurisdiction.\";\nconst disclaimer = \"\\n\\n---\\n\\n**Disclaimer:** This response is for informational purposes only and is NOT professional tax advice. Always consult a qualified tax professional in your jurisdiction.\";\n\nlet geminiResponse;\ntry {\n  const rawResponse = $input.first().json;\n  const responseText = rawResponse.candidates?.[0]?.content?.parts?.[0]?.text || JSON.stringify(rawResponse);\n  geminiResponse = JSON.parse(responseText);\n} catch (error) {\n  return [{\n    json: {\n      final_answer: refusalMessage + disclaimer,\n      safety_triggered: true,\n      reason: 'json_parse_error'\n    }\n  }];\n}\n\nif (!geminiResponse.allowed || geminiResponse.confidence < 0.6) {\n  return [{\n    json: {\n      final_answer: refusalMessage + disclaimer,\n      safety_triggered: true,\n      reason: geminiResponse.allowed === false ? 'not_allowed' : 'low_confidence'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    final_answer: geminiResponse.answer + disclaimer,\n    safety_triggered: false,\n    confidence: geminiResponse.confidence\n  }\n}];"
+      },
+      "id": "2873393e-942f-4408-9e72-5aafe2f94663",
+      "name": "Apply Safety Guard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2496,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "<__PLACEHOLDER_VALUE__Google Gemini API endpoint__>",
+        "authentication": "predefinedCredentialType",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"contents\": [{\"role\": \"user\", \"parts\": [{\"text\": \"System: You are a cautious global tax research assistant. You are NOT a tax advisor. Distinguish clearly between official sources and user uploaded documents. Avoid optimization/avoidance guidance and personalized filing decisions. Output STRICT JSON: {\\\"answer\\\": \\\"...\\\", \\\"confidence\\\": 0.0-1.0, \\\"allowed\\\": true/false}. Always mention this is not professional tax advice.\\n\\nUser Query: \" + $json.user_query + \"\\n\\nContext:\\n\" + $json.full_context}]}], \"generationConfig\": {\"response_mime_type\": \"application/json\"}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "25393c36-c030-4ea6-b053-9899804a877a",
+      "name": "Gemini Tax Reasoner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2272,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "full_context",
+              "value": "={{ `Country: ${$json.country_code}\\n\\nOfficial Sources:\\n${$json.rag_context || $json.research_context || 'None'}\\n\\nUser Document:\\n${$json.user_pdf_context || 'None'}` }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "5c5491bf-07c3-486e-bd4e-5977f8144982",
+      "name": "Prepare Gemini Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2048,
+        64
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "ab267140-5dce-445c-8306-2192a5a659da",
+      "name": "Merge All Context",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1824,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "research_context",
+              "value": "={{ JSON.stringify($json.results || $json) }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "context_type",
+              "value": "web_research",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "a183d73a-f3a9-4c0b-8e43-784ef1bd0a96",
+      "name": "Build Research Context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1600,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "url": "<__PLACEHOLDER_VALUE__Search/Legal Research API endpoint__>",
+        "authentication": "predefinedCredentialType",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $json.country_code + ' tax ' + $json.user_query }}"
+            },
+            {
+              "name": "limit",
+              "value": "5"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "da8c9b24-2e35-413c-b622-d9bb1ae0f2d4",
+      "name": "Web / Legal Research",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1376,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "rag_context",
+              "value": "={{ $json.result?.map(r => r.payload?.content || '').join('\\n---\\n') || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "context_type",
+              "value": "rag_official",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "560ba63c-69d0-48b6-917f-3aac9d755399",
+      "name": "Build RAG Context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1600,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "<__PLACEHOLDER_VALUE__Qdrant/Vector DB API endpoint__>",
+        "authentication": "predefinedCredentialType",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"collection_name\": \"global_tax\",\n  \"filter\": {\n    \"must\": [\n      {\n        \"key\": \"country\",\n        \"match\": {\n          \"value\": \"={{ $json.country_code }}\"\n        }\n      }\n    ]\n  },\n  \"query\": \"={{ $json.user_query }}\",\n  \"limit\": 6\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "a8c4507c-3a80-4119-be0a-98ff202c2fa4",
+      "name": "Vector Search Global Tax",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1376,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.country_code }}",
+                    "rightValue": "US,GB,IN",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "singleValue": "US,GB,IN"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "RAG Supported"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Research Fallback"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "48690d40-6219-4dd0-b467-dc4ada09734b",
+      "name": "RAG Supported?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        1152,
+        48
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "f8013101-5754-40b6-befb-b54d32eef63e",
+      "name": "Merge PDF Branches",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        928,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "user_pdf_context",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "context_source",
+              "value": "none",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "9d415dc8-21c9-4ba0-9d3e-3fddf25602f1",
+      "name": "Set Empty PDF Context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        704,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "user_pdf_context",
+              "value": "={{ $json.text || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "context_source",
+              "value": "user_document",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "dda93e41-d8f5-4b20-880b-c2dc5deeac54",
+      "name": "Set User PDF Context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        704,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "id": "ff9cdd20-b636-417b-992c-2cf700e0a92a",
+      "name": "Extract From PDFs",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Extract Query & Files').item.json.has_files }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0cf6afae-3d1c-4550-a7dd-047cb288a40a",
+      "name": "Any PDFs Uploaded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        256,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "country_code",
+              "value": "={{ $json.country_code.toUpperCase().trim().slice(0, 2) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "7e4e2e94-e465-431e-b55f-2674ef2977a7",
+      "name": "Normalize Country Code",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        32,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "response",
+              "value": "For which country are we clearing taxes? Please provide the country name or code (e.g., US, GB, IN).",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "451c61ac-e7d2-4190-b49c-d1ede5585ec0",
+      "name": "Ask for Country",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        32,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Extract Query & Files').item.json.country_code }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2db6549f-f2e7-4a48-ba39-3199895a4826",
+      "name": "Country Known?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -192,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "user_query",
+              "value": "={{ $json.chatInput }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "has_files",
+              "value": "={{ Object.keys($binary).length > 0 }}",
+              "type": "boolean"
+            },
+            {
+              "id": "id-3",
+              "name": "country_code",
+              "value": "={{ $json.country_code || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "d79fc4ed-bf7b-4aee-8edc-1610168d718a",
+      "name": "Extract Query & Files",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -416,
+        -32
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "602475c1-c94e-4da3-923e-5eb7eb174458",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -704,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "public": true,
+        "initialMessages": "Hi there! 👋\nMy name is Buddy. How can I assist you today?",
+        "options": {
+          "allowFileUploads": true,
+          "loadPreviousSession": "memory"
+        }
+      },
+      "id": "8079d8be-18ef-41ee-8a99-41a455d92313",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -768,
+        -32
+      ],
+      "webhookId": "91805b93-849f-4d27-8f68-72d2be087fb7"
+    },
+    {
+      "parameters": {
+        "content": "## Safety Guard & Refusal\n\n**Gemini Output Schema:**\n```json\n{\n  \"answer\": \"...\",\n  \"confidence\": 0.0-1.0,\n  \"allowed\": true/false\n}\n```\n\n**Refusal Triggers:**\n- allowed = false\n- confidence < 0.6\n- JSON parsing fails\n\n**Refusal Message:**\n\"Sorry for the inconvenience, but I'm not able to provide a definitive answer on this. Please consult a qualified tax professional in your jurisdiction.\"\n\n**Always Append:**\nDisclaimer that this is NOT professional tax advice",
+        "height": 480,
+        "width": 400,
+        "color": 2
+      },
+      "id": "4c80b4ca-6a72-4828-a753-760249a29b1f",
+      "name": "Safety Guard Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2656,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## RAG vs Research Routing\n\n**RAG Path (Supported Countries):**\n- Countries: US, GB, IN (configurable)\n- Query vector DB with country filter\n- Return top 6 relevant tax law snippets\n- High-quality, curated content\n\n**Research Path (Other Countries):**\n- Fallback for unsupported jurisdictions\n- Call external search/legal API\n- Less reliable, needs stronger safety checks\n\n**Both paths:**\n- Build context string\n- Merge with user PDF context\n- Pass to Gemini for reasoning",
+        "height": 396,
+        "width": 380,
+        "color": 6
+      },
+      "id": "b0312103-5f35-4dac-bd17-aabff292ceb6",
+      "name": "RAG vs Research Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        -496
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## PDF Ingestion\n\n**User Documents vs Official Law:**\nCRITICAL distinction in responses!\n\n**Process:**\n1. Check if PDFs uploaded via chat trigger\n2. Extract text from PDFs\n3. Mark as \"user_document\" context\n4. Keep separate from official sources\n\n**Why:**\n- User PDFs may contain personal tax info\n- Must NOT be treated as authoritative law\n- Gemini must clearly label source in responses\n\n**If no PDFs:**\nSet user_pdf_context to empty string",
+        "height": 396,
+        "width": 360,
+        "color": 4
+      },
+      "id": "8868102c-d57e-401c-9dd9-23da6e152a27",
+      "name": "PDF Ingestion Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        352,
+        -512
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Country Routing Logic\n\n**Why Country is Mandatory:**\nTax rules vary dramatically by jurisdiction. Without knowing the country, any advice would be meaningless or dangerous.\n\n**Flow:**\n1. Check if country_code exists in input\n2. If missing → Ask user explicitly\n3. Normalize to ISO-2 uppercase (US, GB, IN, etc.)\n4. Store for downstream routing\n\n**Used for:**\n- RAG vector search filtering\n- Research API query construction\n- Context building",
+        "height": 408,
+        "width": 360,
+        "color": 3
+      },
+      "id": "cbf1aa70-385f-4849-aa30-aa6bcac0d88f",
+      "name": "Country Routing Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -304,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Global Tax Research Assistant\n\n**⚠️ HIGH-RISK DOMAIN WARNING**\n\nThis workflow provides tax research assistance ONLY.\n- NOT professional tax advice\n- NOT personalized tax planning\n- NOT tax optimization guidance\n\n**Purpose:**\n- Help users understand tax concepts\n- Provide general information about tax rules worldwide\n- Distinguish between official sources and user documents\n\n**Safety:**\n- Strong refusal mechanism for uncertain/personalized queries\n- Mandatory disclaimer on all responses\n- Confidence threshold enforcement",
+        "height": 416,
+        "width": 480,
+        "color": 5
+      },
+      "id": "4c6bd70a-aed2-4162-9ec7-78f5956dd2c1",
+      "name": "Overview Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -752,
+        -704
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Return Final Answer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Safety Guard": {
+      "main": [
+        [
+          {
+            "node": "Return Final Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Tax Reasoner": {
+      "main": [
+        [
+          {
+            "node": "Apply Safety Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Gemini Input": {
+      "main": [
+        [
+          {
+            "node": "Gemini Tax Reasoner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge All Context": {
+      "main": [
+        [
+          {
+            "node": "Prepare Gemini Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Research Context": {
+      "main": [
+        [
+          {
+            "node": "Merge All Context",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Web / Legal Research": {
+      "main": [
+        [
+          {
+            "node": "Build Research Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build RAG Context": {
+      "main": [
+        [
+          {
+            "node": "Merge All Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vector Search Global Tax": {
+      "main": [
+        [
+          {
+            "node": "Build RAG Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG Supported?": {
+      "main": [
+        [
+          {
+            "node": "Vector Search Global Tax",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Web / Legal Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge PDF Branches": {
+      "main": [
+        [
+          {
+            "node": "RAG Supported?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Empty PDF Context": {
+      "main": [
+        [
+          {
+            "node": "Merge PDF Branches",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Set User PDF Context": {
+      "main": [
+        [
+          {
+            "node": "Merge PDF Branches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract From PDFs": {
+      "main": [
+        [
+          {
+            "node": "Set User PDF Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any PDFs Uploaded?": {
+      "main": [
+        [
+          {
+            "node": "Extract From PDFs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Empty PDF Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Country Code": {
+      "main": [
+        [
+          {
+            "node": "Any PDFs Uploaded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Country Known?": {
+      "main": [
+        [
+          {
+            "node": "Normalize Country Code",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ask for Country",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Query & Files": {
+      "main": [
+        [
+          {
+            "node": "Country Known?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Query & Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Chat Trigger",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8993d2ab-ebab-40b2-8d15-c16f8bfbcae8",
+  "meta": {
+    "instanceId": "192cb3f736e87d9c71b7323ba9860cbe35ba9c18dc08a37c3d539f4c38367692"
+  },
+  "id": "WFENnmfaox5jMM6m",
+  "tags": []
+}

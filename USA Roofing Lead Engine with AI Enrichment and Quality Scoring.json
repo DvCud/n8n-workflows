@@ -1,0 +1,772 @@
+{
+  "name": "USA Roofing Lead Engine with AI Enrichment and Quality Scoring",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "roofing-leads-ingest",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "193d6e91-2c98-493d-a31f-923428bb7982",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -240,
+        80
+      ],
+      "webhookId": "2b8c368e-dcdd-4e30-b5c8-9576ab342ece"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"accepted\",\n  \"message\": \"Lead job queued\",\n  \"input\": {{ $json }}\n}",
+        "options": {}
+      },
+      "id": "e8f07601-70c1-40ec-8c50-a7d626b553f4",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -16,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "batchSize",
+              "value": 20,
+              "type": "number"
+            },
+            {
+              "id": "id-2",
+              "name": "qualityScoreThreshold",
+              "value": 60,
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "fbcb0f63-cdc1-4de3-9f36-f6a36194d68c",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -16,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "mode",
+              "value": "={{ $json.body.mode || 'apify' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "city",
+              "value": "={{ $json.body.city || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "state",
+              "value": "={{ $json.body.state || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "zip",
+              "value": "={{ $json.body.zip || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "sheetId",
+              "value": "={{ $json.body.sheetId || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "sheetName",
+              "value": "={{ $json.body.sheetName || 'Leads' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "2533d64d-8a08-4506-9d3b-175ed1e052a8",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.mode }}",
+              "rightValue": "apify",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d8b0d5d3-1179-4de3-968a-452ec2d54933",
+      "name": "Mode Branch",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        432,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "<__PLACEHOLDER_VALUE__Apify API endpoint for your Google Maps scraper actor/task__>",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer <__PLACEHOLDER_VALUE__Your Apify API token__>"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"search\": \"roofing contractor\", \"location\": [$json.city, $json.state, $json.zip].filter(v => v).join(', '), \"maxItems\": 1000 } }}",
+        "options": {}
+      },
+      "id": "ba3edfea-0995-4d83-9078-d350d7ad8d3f",
+      "name": "Apify Scraper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        656,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.sheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $json.sheetName }}"
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRangeA1",
+              "range": "A:Z"
+            }
+          },
+          "outputFormatting": {
+            "values": {
+              "general": "UNFORMATTED_VALUE",
+              "date": "SERIAL_NUMBER"
+            }
+          }
+        }
+      },
+      "id": "18a9b9f7-1bdd-45df-aece-bc5b834a9b8d",
+      "name": "Read Manual Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        656,
+        272
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "9JJUZPMdVTuwseGT",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "39fbf3d2-e089-48a3-a6f4-9da333879451",
+      "name": "Merge Branches",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        880,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Normalize Lead Schema - handles both Apify and manual sheet data\n// Output: common schema with company, website, generic_phone, city, state, zip\n\nconst inputData = $input.item.json;\nlet normalizedLead = {};\n\n// Check if data is from Apify (has typical Apify fields)\nif (inputData.name || inputData.phone || inputData.address) {\n  // Apify data normalization\n  normalizedLead = {\n    company: inputData.name || inputData.title || '',\n    website: inputData.website || inputData.url || '',\n    generic_phone: inputData.phone || inputData.phoneNumber || '',\n    city: inputData.city || (inputData.address ? inputData.address.city : ''),\n    state: inputData.state || (inputData.address ? inputData.address.state : ''),\n    zip: inputData.zip || inputData.zipCode || (inputData.address ? inputData.address.zip : '')\n  };\n} else {\n  // Manual sheet data normalization\n  normalizedLead = {\n    company: inputData.company || inputData.Company || inputData.business_name || '',\n    website: inputData.website || inputData.Website || inputData.url || '',\n    generic_phone: inputData.generic_phone || inputData.phone || inputData.Phone || inputData.phoneNumber || '',\n    city: inputData.city || inputData.City || '',\n    state: inputData.state || inputData.State || '',\n    zip: inputData.zip || inputData.Zip || inputData.zipCode || ''\n  };\n}\n\n// Clean up phone number format if present\nif (normalizedLead.generic_phone) {\n  normalizedLead.generic_phone = normalizedLead.generic_phone.toString().replace(/[^0-9]/g, '');\n}\n\n// Clean up zip code if present\nif (normalizedLead.zip) {\n  normalizedLead.zip = normalizedLead.zip.toString().trim();\n}\n\nreturn normalizedLead;"
+      },
+      "id": "b386584a-8835-45c9-956d-2a6141140fb7",
+      "name": "Normalize Lead Schema",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect all normalized leads into a single array\nconst leads = [];\n\nfor (const item of $input.all()) {\n  leads.push(item.json);\n}\n\n// Return a single item with all leads in an array\nreturn {\n  json: {\n    leads: leads\n  }\n};"
+      },
+      "id": "0b09bc77-6642-4e61-91d2-648c8a95de85",
+      "name": "Prepare Batch for AI",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.leads }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an AI lead enrichment agent for B2B roofing contractors.\n\nYour task:\n1. Analyze each lead in the provided array\n2. Infer owner contact information from available data\n3. Assign a quality score based on completeness\n\nFor each lead, extract:\n- company (keep original)\n- city (keep original)\n- state (keep original)\n- website (keep original)\n- generic_phone (keep original)\n- owner_name (best guess from website/data, or empty string)\n- owner_mobile (ONLY if confidently available from public sources, otherwise empty string)\n- email (generic or owner email, prefer owner; empty string if unknown)\n- quality_score (0-100, based on completeness of owner contact info)\n\nReturn ONLY a valid JSON array of enriched lead objects. No additional text or commentary."
+        }
+      },
+      "id": "93037f4e-0e65-45d9-9ce0-985821cbca3c",
+      "name": "AI Enrichment Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        1552,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash-exp",
+        "options": {}
+      },
+      "id": "e345006e-9b47-4341-9353-b18cf82ac631",
+      "name": "Google Gemini Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1552,
+        400
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "UlIRUkJFc0cVP7QN",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"array\",\n  \"items\": {\n    \"type\": \"object\",\n    \"properties\": {\n      \"company\": {\n        \"type\": \"string\"\n      },\n      \"city\": {\n        \"type\": \"string\"\n      },\n      \"state\": {\n        \"type\": \"string\"\n      },\n      \"website\": {\n        \"type\": \"string\"\n      },\n      \"generic_phone\": {\n        \"type\": \"string\"\n      },\n      \"owner_name\": {\n        \"type\": \"string\"\n      },\n      \"owner_mobile\": {\n        \"type\": \"string\"\n      },\n      \"email\": {\n        \"type\": \"string\"\n      },\n      \"quality_score\": {\n        \"type\": \"number\"\n      }\n    }\n  }\n}"
+      },
+      "id": "bde83ab9-eae0-41b7-b2a0-5632ec2271f9",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1680,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI output JSON array and return individual items for each enriched lead\nconst items = $input.all();\nconst outputItems = [];\n\nfor (const item of items) {\n  // Get the AI output from the item\n  const aiOutput = item.json.output || item.json;\n  \n  // Check if the output is a string that needs parsing\n  let parsedData;\n  if (typeof aiOutput === 'string') {\n    try {\n      parsedData = JSON.parse(aiOutput);\n    } catch (error) {\n      console.log('Error parsing AI output:', error);\n      parsedData = aiOutput;\n    }\n  } else {\n    parsedData = aiOutput;\n  }\n  \n  // If parsedData is an array, create individual items for each lead\n  if (Array.isArray(parsedData)) {\n    for (const lead of parsedData) {\n      outputItems.push({\n        json: lead\n      });\n    }\n  } else if (parsedData && typeof parsedData === 'object') {\n    // If it's a single object, add it as one item\n    outputItems.push({\n      json: parsedData\n    });\n  }\n}\n\nreturn outputItems;"
+      },
+      "id": "9099bada-aae1-4deb-ac02-5e375624e9f7",
+      "name": "Parse AI Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1904,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.owner_mobile }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $json.quality_score }}",
+              "rightValue": "={{ $('Workflow Configuration').first().json.qualityScoreThreshold }}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ebf96c59-9cb7-4e96-aeee-471e81b045ce",
+      "name": "Filter Quality Leads",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2128,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Normalize Input').first().json.sheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Normalize Input').first().json.sheetName }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "company": "={{ $json.company }}",
+            "city": "={{ $json.city }}",
+            "state": "={{ $json.state }}",
+            "website": "={{ $json.website }}",
+            "generic_phone": "={{ $json.generic_phone }}",
+            "owner_name": "={{ $json.owner_name }}",
+            "owner_mobile": "={{ $json.owner_mobile }}",
+            "email": "={{ $json.email }}",
+            "quality_score": "={{ $json.quality_score }}"
+          },
+          "matchingColumns": [
+            "company"
+          ],
+          "schema": [
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "city",
+              "displayName": "city",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "state",
+              "displayName": "state",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "website",
+              "displayName": "website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "generic_phone",
+              "displayName": "generic_phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "owner_name",
+              "displayName": "owner_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "owner_mobile",
+              "displayName": "owner_mobile",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "quality_score",
+              "displayName": "quality_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ccffd489-f243-449f-a2eb-ead8c346a59d",
+      "name": "Write Quality Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2352,
+        176
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "9JJUZPMdVTuwseGT",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "📋 INPUT CONTRACT\n\nExpected POST body:\n{\n  \"mode\": \"apify\" | \"manual\",\n  \"city\": \"Houston\",\n  \"state\": \"TX\",\n  \"zip\": \"77001\",\n  \"sheetId\": \"<Google Sheet ID>\",\n  \"sheetName\": \"Leads\"\n}\n\nDefaults:\n- mode: \"apify\"\n- sheetName: \"Leads\"\n- Others: empty strings",
+        "height": 332,
+        "width": 400
+      },
+      "id": "7ed8e1cd-8896-4e2a-a7d9-a060dcbd7068",
+      "name": "Note - Input Contract",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        528,
+        -560
+      ]
+    },
+    {
+      "parameters": {
+        "content": "🔀 MODE BRANCHING\n\nIf mode === \"apify\":\n→ Scrape roofing contractors via Apify\n\nElse (mode === \"manual\"):\n→ Read existing leads from Google Sheet\n\nBoth branches merge for unified processing",
+        "height": 200,
+        "width": 350
+      },
+      "id": "1ce60ea1-0ed0-4557-bcea-b352ab9fc394",
+      "name": "Note - Mode Branching",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        528,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "content": "🔍 APIFY CONFIGURATION\n\nActor/Task: Google Maps scraper\nSearch: \"roofing contractor\"\nLocation: Built from city, state, zip\nMax Items: 1000\n\nRequired:\n- Apify API token\n- Actor/Task ID for Google Maps scraper\n\nExpected output fields:\n- title/name → company\n- website\n- phone\n- address, city, state, postal_code",
+        "height": 348,
+        "width": 400
+      },
+      "id": "e690a4e2-c044-4187-bebf-4cd625835e2a",
+      "name": "Note - Apify Configuration",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        96,
+        -416
+      ]
+    },
+    {
+      "parameters": {
+        "content": "📊 MANUAL SHEET SCHEMA\n\nExpected columns (header row):\n- company (required)\n- website (optional)\n- generic_phone (optional)\n- city (required)\n- state (required)\n- zip (required)\n\nThis branch processes existing CSV/Excel data imported into Google Sheets",
+        "height": 266,
+        "width": 400
+      },
+      "id": "c0fc9bf0-e0d2-4b15-b50c-465071549f02",
+      "name": "Note - Manual Sheet Schema",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        528,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "content": "📐 NORMALIZED SCHEMA\n\nSingle source of truth for all leads:\n- company\n- website\n- generic_phone\n- city\n- state\n- zip\n\nThis schema is stable and should rarely change.\nAll downstream nodes depend on this structure.",
+        "height": 266,
+        "width": 400
+      },
+      "id": "8a39b268-0ed0-485a-b090-d7dab738e78e",
+      "name": "Note - Normalized Schema",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        912,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "content": "🤖 AI ENRICHMENT\n\nGemini analyzes each lead and adds:\n- owner_name (inferred)\n- owner_mobile (if available)\n- email (generic or owner)\n- quality_score (0-100)\n\nStructured output ensures consistent JSON format.\n\nOnly leads with owner_mobile AND quality_score ≥ threshold are written to sheet.",
+        "height": 280,
+        "width": 450
+      },
+      "id": "95e7ed44-8976-427d-bfd8-17a619e61e76",
+      "name": "Note - AI Enrichment",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        544
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "Mode Branch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mode Branch": {
+      "main": [
+        [
+          {
+            "node": "Apify Scraper",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Manual Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify Scraper": {
+      "main": [
+        [
+          {
+            "node": "Merge Branches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Manual Sheet": {
+      "main": [
+        [
+          {
+            "node": "Merge Branches",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Branches": {
+      "main": [
+        [
+          {
+            "node": "Normalize Lead Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Lead Schema": {
+      "main": [
+        [
+          {
+            "node": "Prepare Batch for AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Batch for AI": {
+      "main": [
+        [
+          {
+            "node": "AI Enrichment Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Enrichment Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Enrichment Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Enrichment Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Output": {
+      "main": [
+        [
+          {
+            "node": "Filter Quality Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Quality Leads": {
+      "main": [
+        [
+          {
+            "node": "Write Quality Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "2cf6a082-6672-4a30-b09b-19a70b18903a",
+  "meta": {
+    "instanceId": "192cb3f736e87d9c71b7323ba9860cbe35ba9c18dc08a37c3d539f4c38367692"
+  },
+  "id": "p7smok6YLk9WOKUd",
+  "tags": []
+}
