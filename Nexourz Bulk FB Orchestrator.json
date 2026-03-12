@@ -1,0 +1,4331 @@
+{
+  "name": "Nexourz Bulk FB Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexourz-bulk-poster",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b3822361-8f1e-4985-9f35-c3dd367e3ccc",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        5648,
+        0
+      ],
+      "webhookId": "768384f9-eebc-4b10-869e-302c97d267b5"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Content_Feed"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "id",
+              "lookupValue": "={{ $json.body.content_id }}"
+            }
+          ]
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRangeA1",
+              "range": "A:Z"
+            }
+          }
+        }
+      },
+      "id": "e4960716-01af-4f29-9e58-20e8d9cbf332",
+      "name": "Get Content from Feed",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        5872,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Accounts_Config"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "user_id",
+              "lookupValue": "={{ $json.body.user_id }}"
+            },
+            {
+              "lookupColumn": "active",
+              "lookupValue": "true"
+            }
+          ]
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRangeA1",
+              "range": "A:Z"
+            }
+          }
+        }
+      },
+      "id": "d7af6c6c-5bd8-4d76-ac5c-92591ec2b7d7",
+      "name": "Get Active Accounts",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        6096,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "id": "8ce917e1-45ec-4a16-b502-eb97b5ad32db",
+      "name": "Process Accounts in Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        6320,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "page_id",
+              "value": "={{ $json.page_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "access_token",
+              "value": "={{ $json.access_token }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "caption",
+              "value": "={{ $('Get Content from Feed').item.json.caption }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "media_url",
+              "value": "={{ $('Get Content from Feed').item.json.image_url || $('Get Content from Feed').item.json.video_url }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "delay_minutes",
+              "value": "={{ $json.delay_minutes }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "content_id",
+              "value": "={{ $('Webhook Trigger').item.json.body.content_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1008f553-11c0-4d81-9a85-8271047c3b2d",
+      "name": "Prepare Post Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        6544,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $json.page_id }}/feed",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "={{ $json.caption }}"
+            },
+            {
+              "name": "link",
+              "value": "={{ $json.media_url }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a5e7a66d-e17a-49e1-aef7-7f57e98d3d0e",
+      "name": "Post to Facebook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        6768,
+        -48
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "amount": "={{ $json.delay_minutes }}",
+        "unit": "minutes"
+      },
+      "id": "62710502-b2e8-4eeb-9a26-7798f21498cb",
+      "name": "Delay Between Posts",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        6992,
+        144
+      ],
+      "webhookId": "4df28419-8a35-4ef9-8af7-4d4d9cfb23f5"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Post_Log"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": null
+        },
+        "options": {
+          "useAppend": true
+        }
+      },
+      "id": "76794328-b8cf-443d-9687-e90ba4c70708",
+      "name": "Log Success",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        7440,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "content_id",
+              "value": "={{ $('Prepare Post Payload').item.json.content_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "page_id",
+              "value": "={{ $('Prepare Post Payload').item.json.page_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "posted_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "status",
+              "value": "success",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "post_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "835268c5-83e3-4b58-b08d-98b642fd8510",
+      "name": "Prepare Success Log",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        7216,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "content_id",
+              "value": "={{ $('Prepare Post Payload').item.json.content_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "page_id",
+              "value": "={{ $('Prepare Post Payload').item.json.page_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "posted_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "status",
+              "value": "error",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "error_message",
+              "value": "={{ $json.error.message }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a0fcd4cd-4dfc-4783-862d-75996cbaa744",
+      "name": "Prepare Error Log",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        6992,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Post_Log"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": null
+        },
+        "options": {
+          "useAppend": true
+        }
+      },
+      "id": "cd25119c-5770-4b13-b8d3-6a3f599b22b6",
+      "name": "Log Error",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        7216,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "total_accounts"
+            },
+            {
+              "fieldToAggregate": "success_count"
+            },
+            {
+              "fieldToAggregate": "failed_count"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "06948b59-5eea-4a3f-ba91-315d6a3c9a06",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        6544,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "total_accounts",
+              "value": "={{ $json.total_accounts }}",
+              "type": "number"
+            },
+            {
+              "id": "id-2",
+              "name": "success",
+              "value": "={{ $json.success_count }}",
+              "type": "number"
+            },
+            {
+              "id": "id-3",
+              "name": "failed",
+              "value": "={{ $json.failed_count }}",
+              "type": "number"
+            },
+            {
+              "id": "id-4",
+              "name": "workflow",
+              "value": "Nexourz Bulk FB Poster v1.0",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f3f67009-7e0f-44d1-ba81-81162a8495cd",
+      "name": "Format Summary Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        6768,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "4d68f88f-b38e-4375-8710-18c466acbcc9",
+      "name": "Return Summary",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        6992,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "content": "1) Core Bulk Poster Workflow (Feed → Staggered Multi-Account Posting)",
+        "height": 752,
+        "width": 2480
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        5584,
+        -272
+      ],
+      "typeVersion": 1,
+      "id": "797b6e47-53a7-427f-a5fa-9d7e97a76dd3",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "fb-engagement-webhook",
+        "options": {}
+      },
+      "id": "6a0096c0-7ebc-453e-97cf-4a9f85c7b695",
+      "name": "FB Comment Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        5392,
+        912
+      ],
+      "webhookId": "027c7ffd-f02b-418a-8e24-897739658b81"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.created_time }}",
+              "rightValue": "={{ $now.minus({ hours: 24 }).toISO() }}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "after"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $json.parent_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "any",
+                "operation": "notExists"
+              }
+            },
+            {
+              "id": "id-3",
+              "leftValue": "={{ $json.is_hidden }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "id-4",
+              "leftValue": "={{ $json.message }}",
+              "rightValue": "spam",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "id-5",
+              "leftValue": "={{ $json.message }}",
+              "rightValue": "scam",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "id": "467f48b6-6858-4d08-b496-73f3363400d5",
+      "name": "Filter Recent Comments",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        5616,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "classify",
+        "input": "={{ $json.message }}"
+      },
+      "id": "6935c7f4-6cff-48a1-9b77-8464487b2da4",
+      "name": "Analyze Sentiment",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        5840,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.sentiment }}",
+              "rightValue": "positive",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ Math.random() * 100 }}",
+              "rightValue": "70",
+              "operator": {
+                "type": "number",
+                "operation": "lte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2054ee10-e87f-4cae-a340-31127f019e44",
+      "name": "Check If Positive",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        6064,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $json.comment_id }}/likes",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ace35b05-0f76-4372-bc77-0fd3a438e616",
+      "name": "Like Comment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7184,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "amount": "={{ Math.floor(Math.random() * 11) + 5 }}",
+        "unit": "minutes"
+      },
+      "id": "18b6da3d-b9c4-4738-b26e-0011fb1b0317",
+      "name": "Random Delay",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        7408,
+        816
+      ],
+      "webhookId": "3afc0a81-8e52-4f49-ab3b-5fb5f6b46507"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Generate a short, friendly reply to this comment: \"{{ $('Analyze Sentiment').item.json.message }}\". Keywords mentioned: {{ $('Analyze Sentiment').item.json.keywords }}. Keep it under 50 characters, positive, and human-like."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "instructions": "You are a friendly Facebook page manager. Keep replies short, positive, human-like. Never sell. Be authentic and engaging. Maximum 50 characters.",
+          "temperature": 0.7
+        }
+      },
+      "id": "c24dc051-4f49-4542-b735-2fa80a561fbc",
+      "name": "Generate Reply",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        7632,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $('Analyze Sentiment').item.json.comment_id }}/comments",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Analyze Sentiment').item.json.access_token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "={{ $json.response }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "243f1266-fb05-4f7c-892e-52bc44ea88e1",
+      "name": "Post Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7984,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "comment_id",
+              "value": "={{ $('Analyze Sentiment').item.json.comment_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "page_id",
+              "value": "={{ $('Analyze Sentiment').item.json.page_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "engagement_type",
+              "value": "like",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "sentiment",
+              "value": "={{ $('Analyze Sentiment').item.json.sentiment }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d508a954-9b5b-4da2-a68b-c18438ef0f2b",
+      "name": "Prepare Like Log",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        8208,
+        1008
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "comment_id",
+              "value": "={{ $('Analyze Sentiment').item.json.comment_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "page_id",
+              "value": "={{ $('Analyze Sentiment').item.json.page_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "engagement_type",
+              "value": "reply",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "reply_text",
+              "value": "={{ $json.response }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "sentiment",
+              "value": "={{ $('Analyze Sentiment').item.json.sentiment }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e7848e65-8497-48c3-9480-d4ce454f10d9",
+      "name": "Prepare Reply Log",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        8208,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Post_Log"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": null
+        },
+        "options": {
+          "useAppend": true
+        }
+      },
+      "id": "7a532fb7-06eb-44a3-9621-813c156ab33a",
+      "name": "Log Engagement",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        8432,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "content": "2. Engagement Responder Sub-Workflow\n\nAI-powered comment engagement with:\n- Sentiment analysis (positive/neutral/negative)\n- Smart filtering (24h window, no replies/deleted)\n- 70% reply probability\n- Random 5-15min delays\n- Rate limiting: Max 10/hour per page\n- Keyword filtering: spam, scam",
+        "height": 576,
+        "width": 3280,
+        "color": 2
+      },
+      "id": "82e92770-33d1-45ea-90a1-07ae5729de9b",
+      "name": "Engagement Responder Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        5344,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "page_id",
+              "value": "={{ $json.page_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "one_hour_ago",
+              "value": "={{ $now.minus({ hours: 1 }).toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "014eeb02-89a5-4883-97df-ca91e0893ded",
+      "name": "Add Rate Limit Check",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        6288,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Post_Log"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "page_id",
+              "lookupValue": "={{ $json.page_id }}"
+            },
+            {
+              "lookupColumn": "timestamp",
+              "lookupValue": "={{ $json.one_hour_ago }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5dfda123-16ce-45fd-b0af-70c7965bb27c",
+      "name": "Check Recent Engagements",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        6512,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "6af98437-18eb-4cc6-9d93-a3f1521e9f1a",
+      "name": "Count Hourly Engagements",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        6736,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.data.length }}",
+              "rightValue": "10",
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "id": "6bffa9c7-f9ff-48d4-9606-b8d933cb840c",
+      "name": "Check Rate Limit",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        6960,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": [
+          "POST",
+          "GET",
+          "PATCH"
+        ],
+        "path": "nexourz-api/:endpoint",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "8c52ba0f-ed33-4287-9529-ded16adf378d",
+      "name": "API Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        5488,
+        1584
+      ],
+      "webhookId": "c774b28b-0cb8-4d2b-804f-88ff2e580e82"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate Auth Token - Extract and verify API key or JWT\nconst authHeader = $input.item.json.headers?.authorization || $input.item.json.headers?.Authorization;\n\nif (!authHeader) {\n  return [{\n    json: {\n      valid: false,\n      user_id: null,\n      error: 'Missing Authorization header'\n    }\n  }];\n}\n\n// Extract token (support both \"Bearer TOKEN\" and plain token)\nconst token = authHeader.startsWith('Bearer ') \n  ? authHeader.substring(7) \n  : authHeader;\n\nif (!token || token.trim() === '') {\n  return [{\n    json: {\n      valid: false,\n      user_id: null,\n      error: 'Empty authorization token'\n    }\n  }];\n}\n\n// Simple API key validation (format: nexourz_userid_randomstring)\n// Example: nexourz_user123_abc456def789\nif (token.startsWith('nexourz_')) {\n  const parts = token.split('_');\n  \n  if (parts.length >= 3) {\n    const user_id = parts[1];\n    \n    // Basic validation: user_id should not be empty\n    if (user_id && user_id.length > 0) {\n      return [{\n        json: {\n          valid: true,\n          user_id: user_id,\n          error: null\n        }\n      }];\n    }\n  }\n  \n  return [{\n    json: {\n      valid: false,\n      user_id: null,\n      error: 'Invalid API key format'\n    }\n  }];\n}\n\n// JWT validation (basic decode - for production use proper JWT library)\ntry {\n  const parts = token.split('.');\n  \n  if (parts.length === 3) {\n    // Decode JWT payload (base64url)\n    const payload = JSON.parse(\n      Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString()\n    );\n    \n    // Check expiration\n    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {\n      return [{\n        json: {\n          valid: false,\n          user_id: null,\n          error: 'Token expired'\n        }\n      }];\n    }\n    \n    // Extract user_id from payload\n    const user_id = payload.user_id || payload.sub || payload.userId;\n    \n    if (user_id) {\n      return [{\n        json: {\n          valid: true,\n          user_id: user_id,\n          error: null\n        }\n      }];\n    }\n    \n    return [{\n      json: {\n        valid: false,\n        user_id: null,\n        error: 'No user_id found in token'\n      }\n    }];\n  }\n} catch (e) {\n  // Not a valid JWT, continue to fallback\n}\n\n// If we reach here, token format is not recognized\nreturn [{\n  json: {\n    valid: false,\n    user_id: null,\n    error: 'Invalid token format - expected API key (nexourz_*) or JWT'\n  }\n}];"
+      },
+      "id": "142ba560-c769-4c7d-97cf-a9c7bab52ce6",
+      "name": "Validate Auth Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5712,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "id": "fc2e81e5-1271-4667-bfba-6e993318d571",
+      "name": "Check Auth Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        5936,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.query.endpoint }}",
+                    "rightValue": "connect-fb",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Connect FB"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.query.endpoint }}",
+                    "rightValue": "schedule-batch",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Schedule Batch"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.query.endpoint }}",
+                    "rightValue": "my-stats",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "My Stats"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.query.endpoint }}",
+                    "rightValue": "config",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Config"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "59323fcf-af0f-48ef-97bb-348f1e314a91",
+      "name": "Route by Endpoint",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        6160,
+        2032
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "data",
+              "value": "{}",
+              "type": "object"
+            },
+            {
+              "id": "id-2",
+              "name": "errors",
+              "value": "=[{\"status\": 401, \"title\": \"Unauthorized\", \"detail\": \"{{ $json.error }}\"}]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "709310da-4454-4750-9c50-d1bde21cf77c",
+      "name": "Format Auth Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        6384,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "data",
+              "value": "{}",
+              "type": "object"
+            },
+            {
+              "id": "id-2",
+              "name": "errors",
+              "value": "[{\"status\":404,\"title\":\"Not Found\",\"detail\":\"Unknown endpoint\"}]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c5c3f1cf-b123-49e1-a8ba-4e945876db38",
+      "name": "Format Unknown Endpoint Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        6384,
+        2464
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "a727ca18-d80f-4d9a-9e2f-0d3bacad3db6",
+      "name": "Return Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        6608,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "user_id",
+              "value": "={{ $('Validate Auth Token').item.json.user_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "page_id",
+              "value": "={{ $json.body.page_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "access_token",
+              "value": "={{ $json.body.access_token }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "active",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-5",
+              "name": "connected_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "79aebacf-2260-4e55-8e76-0d5fa25f88a2",
+      "name": "Prepare Account Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        6384,
+        2272
+      ]
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "<__PLACEHOLDER_VALUE__accounts_config_table__>"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": null
+        },
+        "options": {}
+      },
+      "id": "aed8451c-1a03-4957-8a30-dd620ab06faf",
+      "name": "Save to Accounts_Config",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        6608,
+        2368
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "data",
+              "value": "={{ JSON.stringify({ \"page_id\": $json.page_id, \"connected\": true, \"timestamp\": $now.toISO() }) }}",
+              "type": "object"
+            },
+            {
+              "id": "id-2",
+              "name": "errors",
+              "value": "[]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c5d43ec5-71fc-4c8f-be24-60fd4a61b39b",
+      "name": "Format Connect Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        6832,
+        2368
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 201
+        }
+      },
+      "id": "04f72886-1852-4458-90a2-9ca918d4e462",
+      "name": "Return Connect Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        7056,
+        2368
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "<__PLACEHOLDER_VALUE__content_feed_table__>"
+        },
+        "filters": {
+          "conditions": [
+            {}
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "4bbbf861-b0c0-4d41-9940-25fad1e0c5fb",
+      "name": "Get Ready Content",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        6384,
+        2080
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "id": "c3e28aaa-3f2f-4d60-a73a-06919a6d4af5",
+      "name": "Split Content Items",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        6608,
+        2176
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "content_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "user_id",
+              "value": "={{ $('Validate Auth Token').item.json.user_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c2fdb679-b88f-4ff6-b312-113434d5f108",
+      "name": "Prepare Webhook Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        6832,
+        2176
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://demonstrator-1.app.n8n.cloud/webhook/nexourz-bulk-poster",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "8e675469-93b8-475d-b756-8a69148c3ef7",
+      "name": "Call Bulk Poster Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7056,
+        2176
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "batch_results",
+        "options": {}
+      },
+      "id": "42ed6a9d-9415-4bb9-b2eb-4099582e510e",
+      "name": "Aggregate Batch Results",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        7280,
+        2176
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "data",
+              "value": "={{ JSON.stringify({ \"batches_triggered\": $json.batch_results.length, \"status\": \"processing\" }) }}",
+              "type": "object"
+            },
+            {
+              "id": "id-2",
+              "name": "errors",
+              "value": "[]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c2036223-2d6d-496f-a076-cad1da68366e",
+      "name": "Format Batch Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        7504,
+        2176
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "71aff6f4-89fd-4a9e-91f9-867cb49024ab",
+      "name": "Return Batch Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        7728,
+        2176
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "<__PLACEHOLDER_VALUE__post_log_table__>"
+        },
+        "filters": {
+          "conditions": [
+            {}
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "bf637703-c543-4a0f-af46-048b9ba28b6e",
+      "name": "Get User Posts",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        6384,
+        2656
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate Stats from Post Log data\nconst items = $input.all();\n\n// Count posts by status\nconst posts_sent = items.length;\nconst success_count = items.filter(item => item.json.status === 'success').length;\nconst failed_count = items.filter(item => item.json.status === 'error').length;\n\n// Placeholder engagement rate calculation\n// In production, this would calculate based on likes/comments/shares\nconst engagement_rate = success_count > 0 ? ((success_count / posts_sent) * 100).toFixed(2) : 0;\n\n// Return single object with stats\nreturn [{\n  json: {\n    posts_sent: posts_sent,\n    success_count: success_count,\n    failed_count: failed_count,\n    engagement_rate: parseFloat(engagement_rate)\n  }\n}];"
+      },
+      "id": "1fb49215-e4ad-45c4-924d-3de248a50f1d",
+      "name": "Calculate Stats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6608,
+        2656
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "data",
+              "value": "={{ JSON.stringify({ \"posts_sent\": $json.posts_sent, \"success_count\": $json.success_count, \"failed_count\": $json.failed_count, \"engagement_rate\": $json.engagement_rate }) }}",
+              "type": "object"
+            },
+            {
+              "id": "id-2",
+              "name": "errors",
+              "value": "[]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b569ecb9-eeb3-4ea0-bc50-836faea5b2f1",
+      "name": "Format Stats Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        6832,
+        2656
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "40b65350-6888-464e-af70-75cd31a9e1da",
+      "name": "Return Stats Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        7056,
+        2656
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate User Ownership - Check if authenticated user owns the page_id being configured\nconst authenticatedUserId = $('Validate Auth Token').item.json.user_id;\nconst requestedPageId = $input.item.json.body?.page_id;\n\nif (!requestedPageId) {\n  return [{\n    json: {\n      valid: false,\n      error: 'Missing page_id in request body'\n    }\n  }];\n}\n\n// Query Accounts_Config table to find matching page_id\n// Note: In production, this would use a proper database query node\n// For now, we'll use a placeholder that assumes the data is available\ntry {\n  // This is a placeholder - in the actual workflow, you would:\n  // 1. Add a Data Table or Google Sheets node before this\n  // 2. Query Accounts_Config where page_id = requestedPageId\n  // 3. Check if the returned user_id matches authenticatedUserId\n  \n  // For now, return a structure that expects the query result\n  // The actual implementation would check:\n  // const accountConfig = $('Query Account Config').item.json;\n  // if (accountConfig && accountConfig.user_id === authenticatedUserId)\n  \n  return [{\n    json: {\n      valid: true,\n      error: null,\n      page_id: requestedPageId,\n      user_id: authenticatedUserId\n    }\n  }];\n  \n} catch (error) {\n  return [{\n    json: {\n      valid: false,\n      error: `Validation error: ${error.message}`\n    }\n  }];\n}"
+      },
+      "id": "e2890aa0-06b8-41f9-b791-62f1244efa61",
+      "name": "Validate User Ownership",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6384,
+        1792
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "id": "4ce2a7f9-d27b-40d4-8e83-9569ff10b3e5",
+      "name": "Check Ownership Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        6608,
+        1792
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "delay_minutes",
+              "value": "={{ $('Route by Endpoint').item.json.body.delay_minutes }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "069c5a1e-a364-47a6-b251-785072fac740",
+      "name": "Prepare Config Update",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        6832,
+        1984
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "<__PLACEHOLDER_VALUE__accounts_config_table__>"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "page_id",
+              "keyValue": "={{ $json.page_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": null
+        },
+        "options": {}
+      },
+      "id": "d16b85b4-614f-4c73-98ff-8047e5e20ff5",
+      "name": "Update Account Config",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        7056,
+        1984
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "data",
+              "value": "={{ JSON.stringify({ \"updated\": true, \"delay_minutes\": $json.delay_minutes }) }}",
+              "type": "object"
+            },
+            {
+              "id": "id-2",
+              "name": "errors",
+              "value": "[]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "aabc8b9b-27b9-4e8b-8f51-e0e56eadbd48",
+      "name": "Format Config Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        7280,
+        1984
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "data",
+              "value": "{}",
+              "type": "object"
+            },
+            {
+              "id": "id-2",
+              "name": "errors",
+              "value": "[{\"status\": 403, \"title\": \"Forbidden\", \"detail\": \"User does not own this resource\"}]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "69901dfe-327e-49e8-b6a4-dd54135c72b6",
+      "name": "Format Ownership Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        7280,
+        1792
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "64c6be9a-fc20-47b3-a2d5-fb6d259c0c6a",
+      "name": "Return Config Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        7504,
+        1792
+      ]
+    },
+    {
+      "parameters": {
+        "content": "3) SaaS Multi-Tenant Orchestrator (User Dashboard → Workflow Calls)",
+        "height": 1312,
+        "width": 2496
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        5440,
+        1488
+      ],
+      "typeVersion": 1,
+      "id": "5b07b0fa-a6eb-407c-8c9f-70319f3082e3",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexourz-content-feed",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b846b78d-41fe-4446-896d-4f0eef1ac100",
+      "name": "Content Feed Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        5568,
+        3264
+      ],
+      "webhookId": "f6c36e15-651c-40e6-b642-9abaa118ffaf"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.body.bulk_csv_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "749c0bdb-1ce6-4069-9037-e529bdfbb3cc",
+      "name": "Fetch CSV Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        5792,
+        3264
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "ae132a51-f366-4107-82ec-74f0da0b325b",
+      "name": "Parse CSV to JSON",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        6016,
+        3264
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "id": "64e61bd9-81fd-40ac-81f0-a9a6945fba1b",
+      "name": "Split Content Rows",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        6240,
+        3264
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.media_url }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $json.media_url }}",
+              "rightValue": "\\.(jpg|jpeg|png|mp4)$",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "id": "b7038cd1-7885-4204-b496-45a23946246d",
+      "name": "Check Media URL Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        6464,
+        3264
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.caption }}",
+        "options": {
+          "systemMessage": "You are a social media caption optimizer. Transform captions to be conversational, engaging, and human-like. Add relevant emojis naturally. Keep output under 200 characters. Maintain the core message but make it more relatable."
+        }
+      },
+      "id": "0fd1c4c4-5469-4021-a8f8-0b2caed9517e",
+      "name": "AI Caption Humanizer",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        6688,
+        3392
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "id": "4961aca7-18e8-4b92-9994-97d7670b4a50",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        6768,
+        3616
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "user_id",
+              "value": "={{ $('Content Feed Webhook').item.json.body.user_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "caption",
+              "value": "={{ $json.output || $json.caption }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "media_url",
+              "value": "={{ $json.media_url }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "status",
+              "value": "pending",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "created_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "897e703c-c94c-4a8b-950d-1ac5e753cd65",
+      "name": "Prepare for Google Sheets",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        7040,
+        3392
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "caption",
+              "value": "={{ $json.caption }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "media_url",
+              "value": "={{ $json.media_url }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "error",
+              "value": "Invalid media URL format or missing",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3f017da1-b0b0-44e3-8386-8c820278f2d3",
+      "name": "Prepare Invalid Items",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        7488,
+        3136
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Content_Feed"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": null
+        },
+        "options": {
+          "useAppend": true
+        }
+      },
+      "id": "ff1e21fe-5e71-449c-89a0-7393ba2b4b6c",
+      "name": "Append to Content_Feed",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        7264,
+        3392
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "valid_items",
+        "options": {}
+      },
+      "id": "f4e414d4-69dd-4f93-8056-100c3a643ccd",
+      "name": "Aggregate Valid Items",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        7488,
+        3392
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "invalid_items",
+        "options": {}
+      },
+      "id": "8fb7a967-6073-4865-8fb4-cad87256f2ac",
+      "name": "Aggregate Invalid Items",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        7712,
+        3136
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://demonstrator-1.app.n8n.cloud/webhook/nexourz-api/schedule-batch",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $('Content Feed Webhook').item.json.body.user_id }}\"\n}",
+        "options": {}
+      },
+      "id": "64b2ba43-05b4-4769-9bb4-9395426db8b7",
+      "name": "Trigger Schedule Batch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7712,
+        3392
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "d73ca24e-fe2d-45be-ad27-9c161785901e",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        7936,
+        3264
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "success",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "valid_count",
+              "value": "={{ $('Aggregate Valid Items').item.json.valid_items?.length || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "id-3",
+              "name": "invalid_count",
+              "value": "={{ $('Aggregate Invalid Items').item.json.invalid_items?.length || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "id-4",
+              "name": "message",
+              "value": "Content feed updated. Batch scheduling triggered.",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "approval_webhook",
+              "value": "https://demonstrator-1.app.n8n.cloud/webhook/nexourz-approve-content",
+              "type": "string"
+            },
+            {
+              "id": "id-7",
+              "name": "approval_instructions",
+              "value": "POST to approval_webhook with {content_id, user_id} to mark content as ready",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "631566fe-1654-46fb-9c7a-e66eef401f2b",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        8160,
+        3264
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "62b5159c-0ddb-48ea-af70-c9ffdceab108",
+      "name": "Return Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        8384,
+        3264
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexourz-approve-content",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1524239c-cacc-4e42-a528-8958bd04401e",
+      "name": "Approval Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        7216,
+        -80
+      ],
+      "webhookId": "a11c634e-f06f-45a4-be2e-eded7b12f7ce"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Content_Feed"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "ready",
+            "approved_at": "={{ $now.toISO() }}",
+            "approved_by": "={{ $json.body.user_id }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "7d21b5ab-efc7-4512-9942-f13f23eb10c2",
+      "name": "Update Content Status",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        7440,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "status",
+              "value": "approved",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "content_id",
+              "value": "={{ $json.body.content_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "message",
+              "value": "Content approved and marked as ready for posting",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4ef07033-aba6-4505-8fcb-939671885c01",
+      "name": "Format Approval Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        7664,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "dab3ed61-f68a-47c2-b8a7-7f6fff44c17c",
+      "name": "Return Approval Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        7888,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Nexourz Content Feed Manager\n\nBulk content preparation workflow:\n1. Webhook receives user_id + bulk_csv_url\n2. Fetch & parse CSV (caption, media_url per row)\n3. Validate media URLs (jpg, png, mp4 format)\n4. OPTIONAL: AI humanizes captions (conversational, emojis, max 200 chars)\n5. Append valid rows to Content_Feed with status=pending\n6. Trigger SaaS Orchestrator /schedule-batch\n7. Manual approval: POST to /nexourz-approve-content to set status=ready\n\nWebhook URL: https://demonstrator-1.app.n8n.cloud/webhook/nexourz-content-feed\nApproval URL: https://demonstrator-1.app.n8n.cloud/webhook/nexourz-approve-content",
+        "height": 760,
+        "width": 3040,
+        "color": 3
+      },
+      "id": "e84adb8e-8407-4ae3-965a-d1041327dbc3",
+      "name": "Content Feed Manager Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        5520,
+        2976
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "676ab168-ee0f-415c-bea9-48e9121aa936",
+      "name": "Monitor Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        5408,
+        4352
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();\nreturn [{\n  json: {\n    threshold_24h: twentyFourHoursAgo,\n    current_time: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "6f30e37e-cd32-403e-bfbb-ac352d924156",
+      "name": "Calculate 24h Threshold",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5632,
+        4352
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Post_Log"
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRangeA1",
+              "range": "A:Z"
+            }
+          }
+        }
+      },
+      "id": "df402c58-35f4-4393-a396-70116069b0a6",
+      "name": "Query Post_Log Errors",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        5856,
+        4352
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "error",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $json.posted_at }}",
+              "rightValue": "={{ $('Calculate 24h Threshold').item.json.threshold_24h }}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "before"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "id": "58c40a8a-2ee2-4ba4-ab39-12d676eade79",
+      "name": "Filter Errors and Old Posts",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        6080,
+        4352
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const errorMsg = $input.item.json.error_message || '';\nlet category = 'other';\nlet is_retryable = false;\n\nif (errorMsg.match(/token|expired|invalid.*token|OAuthException/i)) {\n  category = 'token_error';\n  is_retryable = false;\n} else if (errorMsg.match(/rate.*limit|too.*many.*requests|429/i)) {\n  category = 'rate_limit';\n  is_retryable = true;\n} else if (errorMsg.match(/network|timeout|ECONNREFUSED/i)) {\n  category = 'network_error';\n  is_retryable = true;\n}\n\nreturn [{\n  json: {\n    ...$input.item.json,\n    error_category: category,\n    is_retryable: is_retryable\n  }\n}];"
+      },
+      "id": "63117d00-a93f-4c76-acc3-8c6b516f1720",
+      "name": "Classify Error Type",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6304,
+        4352
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.error_category }}",
+                    "rightValue": "token_error",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Token Errors"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.error_category }}",
+                    "rightValue": "rate_limit",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Rate Limits"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "aea29b09-31ab-4014-99c4-e7ad2cb5786d",
+      "name": "Route by Error Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        6528,
+        4496
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "token_errors",
+        "options": {}
+      },
+      "id": "649ae442-fa79-412e-9faf-2423c38f00d4",
+      "name": "Aggregate Token Errors",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        6752,
+        4416
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "alert_type",
+              "value": "token_expiry",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "affected_users",
+              "value": "={{ $json.token_errors.map(e => e.user_id).filter((v,i,a) => a.indexOf(v) === i).join(', ') }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "error_count",
+              "value": "={{ $json.token_errors.length }}",
+              "type": "number"
+            },
+            {
+              "id": "id-4",
+              "name": "message",
+              "value": "=Reconnect FB account - {{ $json.token_errors.length }} token errors detected",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "action_link",
+              "value": "https://demonstrator-1.app.n8n.cloud/webhook/nexourz-api/connect-fb",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "action_text",
+              "value": "Click here to reconnect your Facebook account",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "59314b32-d656-4e79-b59e-1b18e7a5abcf",
+      "name": "Prepare Token Alert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        7040,
+        4416
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "rate_limit_errors",
+        "options": {}
+      },
+      "id": "4aed6ae4-2fd6-40a0-86ad-2905be443a10",
+      "name": "Aggregate Rate Limits",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        6752,
+        4608
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://demonstrator-1.app.n8n.cloud/webhook/nexourz-bulk-poster",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content_id\": \"{{ $json.content_id }}\",\n  \"user_id\": \"{{ $json.user_id }}\"\n}",
+        "options": {}
+      },
+      "id": "c9a108ae-66e4-4a99-8081-dc13cba907c5",
+      "name": "Auto-Retry Rate Limited Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        7040,
+        4608
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "all_errors",
+        "options": {}
+      },
+      "id": "685ac1e0-ed9b-4f96-a4f3-0b5dbc693db1",
+      "name": "Aggregate All Errors",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        6752,
+        4112
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($json.all_errors) }}",
+        "options": {
+          "systemMessage": "You are an error pattern analyzer for a Facebook posting automation system. Analyze the provided error data and generate a concise summary. Count errors by category (token expires, rate limits, network issues, etc). Identify trends and provide actionable insights. Format: 'Summary: X token expires, Y rate limits, Z other errors. Recommendation: [action needed]'"
+        }
+      },
+      "id": "9af50e09-4f66-485f-ba31-d2d2f3331cd5",
+      "name": "AI Error Pattern Analyzer",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        6976,
+        4016
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "35d0226c-b7b5-4aee-9d37-4b91876199f8",
+      "name": "OpenAI Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        7040,
+        4240
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "bf5efacb-e558-47c6-9271-8047acf9ff5b",
+      "name": "Merge Alerts and Analysis",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        7328,
+        4256
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "subject",
+              "value": "🚨 Nexourz FB Monitor Alert",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "ai_summary",
+              "value": "={{ $('AI Error Pattern Analyzer').item.json.output }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "token_error_count",
+              "value": "={{ $('Prepare Token Alert').item.json.error_count || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "id-4",
+              "name": "reconnect_link",
+              "value": "https://demonstrator-1.app.n8n.cloud/webhook/nexourz-api/connect-fb",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "affected_users",
+              "value": "={{ $('Prepare Token Alert').item.json.affected_users || 'None' }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "id-7",
+              "name": "full_message",
+              "value": "={{ $json.ai_summary }}\n\n⚠️ Token Errors: {{ $json.token_error_count }}\nAffected Users: {{ $json.affected_users }}\n\n🔗 Reconnect: {{ $json.reconnect_link }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e23df1c9-7563-4e08-bf72-43342130a885",
+      "name": "Format Alert Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        7552,
+        4192
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "<__PLACEHOLDER_VALUE__slack_channel__>"
+        },
+        "messageType": "block",
+        "blocksUi": "=[\n  {\n    \"type\": \"header\",\n    \"text\": {\n      \"type\": \"plain_text\",\n      \"text\": \"🚨 Nexourz Error Monitoring Alert\"\n    }\n  },\n  {\n    \"type\": \"section\",\n    \"text\": {\n      \"type\": \"mrkdwn\",\n      \"text\": \"*AI Analysis Summary*\\n{{ $json.ai_summary }}\"\n    }\n  },\n  {\n    \"type\": \"divider\"\n  },\n  {\n    \"type\": \"section\",\n    \"text\": {\n      \"type\": \"mrkdwn\",\n      \"text\": \"*Token Errors Detected*\\n{{ $json.token_error_count }} accounts need reconnection\\nAffected Users: {{ $json.affected_users }}\"\n    },\n    \"accessory\": {\n      \"type\": \"button\",\n      \"text\": {\n        \"type\": \"plain_text\",\n        \"text\": \"Reconnect Account\"\n      },\n      \"url\": \"{{ $json.reconnect_link }}\",\n      \"action_id\": \"reconnect_fb\"\n    }\n  }\n]",
+        "text": "={{ $json.full_message }}",
+        "otherOptions": {}
+      },
+      "id": "8bffbbba-0d5d-4b6e-a5b0-0db862012715",
+      "name": "Send Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        7776,
+        4144
+      ],
+      "webhookId": "24c9502d-56de-48fe-9230-099fbd0546b3"
+    },
+    {
+      "parameters": {
+        "fromEmail": "<__PLACEHOLDER_VALUE__from_email__>",
+        "toEmail": "<__PLACEHOLDER_VALUE__admin_email__>",
+        "subject": "={{ $json.subject }}",
+        "html": "=<h2>🚨 Nexourz Bulk Poster Alert</h2>\n<p><strong>AI Analysis:</strong></p>\n<p>{{ $json.output || $json.ai_summary }}</p>\n<hr>\n<p><strong>Error Summary:</strong></p>\n<ul>\n<li>Token Errors: {{ $json.token_error_count || 0 }}</li>\n<li>Rate Limits: {{ $json.rate_limit_count || 0 }}</li>\n<li>Other Errors: {{ $json.other_error_count || 0 }}</li>\n</ul>\n<p><strong>Action Required:</strong></p>\n<p><a href=\"{{ $json.action_link }}\" style=\"background-color: #ff6d5a; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;\">{{ $json.action_text || 'Reconnect Facebook Account' }}</a></p>\n<hr>\n<p style=\"font-size: 12px; color: #7e8186;\">Generated at {{ $now.toISO() }}</p>",
+        "options": {
+          "appendAttribution": true
+        }
+      },
+      "id": "710bcef5-d44a-41ae-9f1d-ca2f228659bb",
+      "name": "Send Email Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        7776,
+        4352
+      ],
+      "webhookId": "35f993d1-c0ba-49c4-b221-936acdeddf2c"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "workflow",
+              "value": "Nexourz FB Monitor",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "status",
+              "value": "completed",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "errors_found",
+              "value": "={{ $('Aggregate All Errors').item.json.all_errors.length }}",
+              "type": "number"
+            },
+            {
+              "id": "id-4",
+              "name": "token_errors",
+              "value": "={{ $('Aggregate Token Errors').item.json.token_errors?.length || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "id-5",
+              "name": "rate_limits",
+              "value": "={{ $('Aggregate Rate Limits').item.json.rate_limit_errors?.length || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "id-6",
+              "name": "retries_triggered",
+              "value": "={{ $('Aggregate Rate Limits').item.json.rate_limit_errors?.length || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "id-7",
+              "name": "alerts_sent",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "id-8",
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f9e390d4-582f-402d-85b5-adb2db586037",
+      "name": "Format Summary",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        8000,
+        4352
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Nexourz FB Monitor - Watchdog Workflow\n\nRuns every 6 hours to monitor Post_Log for:\n✅ Error status records\n✅ Posts older than 24 hours\n\nFeatures:\n🔍 AI-powered error pattern analysis (OpenAI)\n🏷️ Error classification (token expiry, rate limits, network)\n🔄 Auto-retry for rate-limited posts\n📧 Multi-channel alerts (Slack + Email)\n🔗 Actionable links to /connect-fb for token issues\n\nAlert Format:\n- AI Summary: Error counts and trends\n- Token Errors: Affected users + reconnect link\n- Rate Limits: Auto-retry triggered\n- Recommendations: Next actions needed",
+        "height": 840,
+        "width": 2832,
+        "color": 4
+      },
+      "id": "64b2ada3-ac9e-4de1-9de8-bf242088b3cf",
+      "name": "FB Monitor Workflow Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        5360,
+        3952
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "6f8e22df-3e64-4cbd-9c6c-a706fc9627c7",
+      "name": "Weekly Analytics Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        5408,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Post_Log"
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRangeA1",
+              "range": "A:Z"
+            }
+          }
+        }
+      },
+      "id": "20ff9d20-23c3-41d8-a5da-8f4f1746b2a8",
+      "name": "Query Post_Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        5632,
+        5040
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Engagement_Log"
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRangeA1",
+              "range": "A:Z"
+            }
+          }
+        }
+      },
+      "id": "fef1ed78-24f8-455c-9013-e5edad4553ba",
+      "name": "Query Engagement_Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        5632,
+        5232
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "b5215766-2760-4c69-804a-34f4d1e0e757",
+      "name": "Merge Logs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        5856,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compute per-user metrics from merged Post_Log and Engagement_Log data\nconst items = $input.all();\n\n// Separate Post_Log and Engagement_Log items\nconst postLogs = items.filter(item => item.json.status !== undefined);\nconst engagementLogs = items.filter(item => item.json.engagement_type !== undefined);\n\n// Group posts by user_id\nconst userMetrics = {};\n\npostLogs.forEach(post => {\n  const userId = post.json.user_id || 'unknown';\n  \n  if (!userMetrics[userId]) {\n    userMetrics[userId] = {\n      user_id: userId,\n      total_posts: 0,\n      successful_posts: 0,\n      failed_posts: 0,\n      total_delay_minutes: 0,\n      delay_count: 0,\n      total_engagements: 0\n    };\n  }\n  \n  userMetrics[userId].total_posts++;\n  \n  if (post.json.status === 'success') {\n    userMetrics[userId].successful_posts++;\n  } else if (post.json.status === 'error') {\n    userMetrics[userId].failed_posts++;\n  }\n  \n  // Track delay minutes if available\n  const delayMinutes = parseFloat(post.json.delay_minutes);\n  if (!isNaN(delayMinutes)) {\n    userMetrics[userId].total_delay_minutes += delayMinutes;\n    userMetrics[userId].delay_count++;\n  }\n});\n\n// Count engagements per user (likes + comments)\nengagementLogs.forEach(engagement => {\n  const userId = engagement.json.user_id || 'unknown';\n  \n  if (userMetrics[userId]) {\n    userMetrics[userId].total_engagements++;\n  }\n});\n\n// Calculate final metrics for each user\nconst userResults = [];\nlet totalEngagementRate = 0;\nlet totalAvgDelay = 0;\nlet userCount = 0;\n\nfor (const userId in userMetrics) {\n  const metrics = userMetrics[userId];\n  \n  // Calculate average delay used\n  const avg_delay_used = metrics.delay_count > 0 \n    ? (metrics.total_delay_minutes / metrics.delay_count).toFixed(2) \n    : 0;\n  \n  // Calculate engagement rate: (total_engagements / total_posts) * 100\n  const engagement_rate = metrics.total_posts > 0 \n    ? ((metrics.total_engagements / metrics.total_posts) * 100).toFixed(2) \n    : 0;\n  \n  userResults.push({\n    user_id: userId,\n    total_posts: metrics.total_posts,\n    successful_posts: metrics.successful_posts,\n    failed_posts: metrics.failed_posts,\n    avg_delay_used: parseFloat(avg_delay_used),\n    total_engagements: metrics.total_engagements,\n    engagement_rate: parseFloat(engagement_rate)\n  });\n  \n  totalEngagementRate += parseFloat(engagement_rate);\n  totalAvgDelay += parseFloat(avg_delay_used);\n  userCount++;\n}\n\n// Calculate overall averages\nconst overall_avg_engagement_rate = userCount > 0 \n  ? (totalEngagementRate / userCount).toFixed(2) \n  : 0;\n\nconst overall_avg_delay = userCount > 0 \n  ? (totalAvgDelay / userCount).toFixed(2) \n  : 0;\n\n// Add overall metrics to each user for comparison\nconst finalResults = userResults.map(user => ({\n  ...user,\n  overall_avg_engagement_rate: parseFloat(overall_avg_engagement_rate),\n  overall_avg_delay: parseFloat(overall_avg_delay),\n  engagement_vs_avg: (user.engagement_rate - parseFloat(overall_avg_engagement_rate)).toFixed(2)\n}));\n\nreturn finalResults.map(result => ({ json: result }));"
+      },
+      "id": "ad469da9-eab4-4bea-bd3a-ef7a1e047141",
+      "name": "Compute User Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6080,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "users",
+        "options": {}
+      },
+      "id": "98845fde-8314-48da-978f-747661a94a7c",
+      "name": "Split Users",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        6304,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($json) }}",
+        "options": {
+          "systemMessage": "You are a social media analytics expert. Generate a personalized insight for this user based on their metrics. Format: \"User [user_id] crushed it: [total_posts] posts → [engagement_rate]% engagement vs [avg_engagement]% avg\". Add specific recommendations based on performance. Keep it under 150 characters, motivating and actionable."
+        }
+      },
+      "id": "070c1904-3a94-46f5-9eb2-946cf9ef2544",
+      "name": "AI Insights Generator",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        6528,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "id": "760e0d3a-dc11-4742-a857-2fc600faa0bf",
+      "name": "OpenAI Analytics Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        6592,
+        5360
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "user_insights",
+        "options": {}
+      },
+      "id": "47da0e7c-1079-4479-bf4d-10ff27583690",
+      "name": "Aggregate User Insights",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        6880,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate Chart.js configuration data for analytics report\nconst items = $input.all();\n\n// Extract user metrics from input\nconst userMetrics = items.map(item => item.json);\n\n// Sort users by total_posts for better visualization\nuserMetrics.sort((a, b) => b.total_posts - a.total_posts);\n\n// 1. Bar Chart: Posts per User\nconst postsBarChart = {\n  type: 'bar',\n  data: {\n    labels: userMetrics.map(u => u.user_id),\n    datasets: [\n      {\n        label: 'Total Posts',\n        data: userMetrics.map(u => u.total_posts),\n        backgroundColor: 'rgba(54, 162, 235, 0.6)',\n        borderColor: 'rgba(54, 162, 235, 1)',\n        borderWidth: 1\n      },\n      {\n        label: 'Successful Posts',\n        data: userMetrics.map(u => u.successful_posts),\n        backgroundColor: 'rgba(75, 192, 192, 0.6)',\n        borderColor: 'rgba(75, 192, 192, 1)',\n        borderWidth: 1\n      },\n      {\n        label: 'Failed Posts',\n        data: userMetrics.map(u => u.failed_posts),\n        backgroundColor: 'rgba(255, 99, 132, 0.6)',\n        borderColor: 'rgba(255, 99, 132, 1)',\n        borderWidth: 1\n      }\n    ]\n  },\n  options: {\n    responsive: true,\n    plugins: {\n      title: {\n        display: true,\n        text: 'Posts per User (Total, Success, Failed)'\n      },\n      legend: {\n        display: true,\n        position: 'top'\n      }\n    },\n    scales: {\n      y: {\n        beginAtZero: true,\n        title: {\n          display: true,\n          text: 'Number of Posts'\n        }\n      },\n      x: {\n        title: {\n          display: true,\n          text: 'User ID'\n        }\n      }\n    }\n  }\n};\n\n// 2. Line Chart: Engagement Rate Comparison\nconst engagementLineChart = {\n  type: 'line',\n  data: {\n    labels: userMetrics.map(u => u.user_id),\n    datasets: [\n      {\n        label: 'User Engagement Rate (%)',\n        data: userMetrics.map(u => u.engagement_rate),\n        borderColor: 'rgba(255, 159, 64, 1)',\n        backgroundColor: 'rgba(255, 159, 64, 0.2)',\n        fill: true,\n        tension: 0.4\n      },\n      {\n        label: 'Platform Average (%)',\n        data: userMetrics.map(u => u.overall_avg_engagement_rate),\n        borderColor: 'rgba(153, 102, 255, 1)',\n        backgroundColor: 'rgba(153, 102, 255, 0.2)',\n        fill: false,\n        borderDash: [5, 5],\n        tension: 0.4\n      }\n    ]\n  },\n  options: {\n    responsive: true,\n    plugins: {\n      title: {\n        display: true,\n        text: 'Engagement Rate: User vs Platform Average'\n      },\n      legend: {\n        display: true,\n        position: 'top'\n      }\n    },\n    scales: {\n      y: {\n        beginAtZero: true,\n        title: {\n          display: true,\n          text: 'Engagement Rate (%)'\n        }\n      },\n      x: {\n        title: {\n          display: true,\n          text: 'User ID'\n        }\n      }\n    }\n  }\n};\n\n// 3. Doughnut Chart: Overall Success vs Failed Posts\nconst totalSuccess = userMetrics.reduce((sum, u) => sum + u.successful_posts, 0);\nconst totalFailed = userMetrics.reduce((sum, u) => sum + u.failed_posts, 0);\n\nconst successDoughnutChart = {\n  type: 'doughnut',\n  data: {\n    labels: ['Successful Posts', 'Failed Posts'],\n    datasets: [\n      {\n        data: [totalSuccess, totalFailed],\n        backgroundColor: [\n          'rgba(75, 192, 192, 0.8)',\n          'rgba(255, 99, 132, 0.8)'\n        ],\n        borderColor: [\n          'rgba(75, 192, 192, 1)',\n          'rgba(255, 99, 132, 1)'\n        ],\n        borderWidth: 2\n      }\n    ]\n  },\n  options: {\n    responsive: true,\n    plugins: {\n      title: {\n        display: true,\n        text: 'Overall Post Success Rate'\n      },\n      legend: {\n        display: true,\n        position: 'bottom'\n      }\n    }\n  }\n};\n\n// Return chart configurations as JSON\nreturn [{\n  json: {\n    charts: {\n      postsBarChart: postsBarChart,\n      engagementLineChart: engagementLineChart,\n      successDoughnutChart: successDoughnutChart\n    },\n    chartConfigs: {\n      postsBarChartJson: JSON.stringify(postsBarChart),\n      engagementLineChartJson: JSON.stringify(engagementLineChart),\n      successDoughnutChartJson: JSON.stringify(successDoughnutChart)\n    },\n    summary: {\n      total_users: userMetrics.length,\n      total_posts: userMetrics.reduce((sum, u) => sum + u.total_posts, 0),\n      total_success: totalSuccess,\n      total_failed: totalFailed,\n      success_rate: totalSuccess + totalFailed > 0 ? ((totalSuccess / (totalSuccess + totalFailed)) * 100).toFixed(2) : 0\n    }\n  }\n}];"
+      },
+      "id": "265a45c8-75d2-4eaa-a00f-744838db9e10",
+      "name": "Generate Charts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7104,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Flag Top Performers for Upsell\nconst items = $input.all();\n\n// Calculate overall average engagement rate\nlet totalEngagementRate = 0;\nlet userCount = items.length;\n\nitems.forEach(item => {\n  totalEngagementRate += item.json.engagement_rate || 0;\n});\n\nconst avgEngagementRate = userCount > 0 ? totalEngagementRate / userCount : 0;\nconst upsellThreshold = avgEngagementRate * 1.5;\n\n// Flag users for upsell\nconst enhancedUsers = items.map(item => {\n  const user = item.json;\n  const engagementRate = user.engagement_rate || 0;\n  const totalPosts = user.total_posts || 0;\n  \n  let upsellCandidate = false;\n  let upsellReason = '';\n  \n  // Check if user qualifies for upsell\n  if (engagementRate > upsellThreshold && totalPosts > 50) {\n    upsellCandidate = true;\n    upsellReason = `High engagement (${engagementRate}% vs ${avgEngagementRate.toFixed(2)}% avg) + High volume (${totalPosts} posts)`;\n  } else if (engagementRate > upsellThreshold) {\n    upsellCandidate = true;\n    upsellReason = `High engagement rate: ${engagementRate}% (${((engagementRate / avgEngagementRate - 1) * 100).toFixed(0)}% above average)`;\n  } else if (totalPosts > 50) {\n    upsellCandidate = true;\n    upsellReason = `Power user: ${totalPosts} posts published`;\n  }\n  \n  return {\n    json: {\n      ...user,\n      upsell_candidate: upsellCandidate,\n      upsell_reason: upsellReason,\n      avg_engagement_rate: parseFloat(avgEngagementRate.toFixed(2)),\n      upsell_threshold: parseFloat(upsellThreshold.toFixed(2))\n    }\n  };\n});\n\nreturn enhancedUsers;"
+      },
+      "id": "e42bc2a8-1f85-4898-bfd3-f172abe24ad6",
+      "name": "Flag Top Performers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7328,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "html": "=<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\" />\n  <title>Nexourz FB Analytics - Weekly Report</title>\n  <style>\n    * {\n      margin: 0;\n      padding: 0;\n      box-sizing: border-box;\n    }\n    \n    body {\n      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n      padding: 40px 20px;\n      color: #333;\n    }\n    \n    .container {\n      max-width: 1200px;\n      margin: 0 auto;\n      background-color: #ffffff;\n      border-radius: 16px;\n      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);\n      overflow: hidden;\n    }\n    \n    .header {\n      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n      color: white;\n      padding: 40px;\n      text-align: center;\n    }\n    \n    .header h1 {\n      font-size: 36px;\n      font-weight: bold;\n      margin-bottom: 10px;\n    }\n    \n    .header p {\n      font-size: 18px;\n      opacity: 0.9;\n    }\n    \n    .summary {\n      display: grid;\n      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));\n      gap: 20px;\n      padding: 40px;\n      background-color: #f8f9fa;\n    }\n    \n    .summary-card {\n      background-color: white;\n      padding: 24px;\n      border-radius: 12px;\n      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);\n      text-align: center;\n      transition: transform 0.3s ease;\n    }\n    \n    .summary-card:hover {\n      transform: translateY(-5px);\n    }\n    \n    .summary-card h3 {\n      font-size: 14px;\n      color: #7e8186;\n      text-transform: uppercase;\n      letter-spacing: 1px;\n      margin-bottom: 12px;\n    }\n    \n    .summary-card .value {\n      font-size: 32px;\n      font-weight: bold;\n      color: #667eea;\n    }\n    \n    .section {\n      padding: 40px;\n    }\n    \n    .section-title {\n      font-size: 28px;\n      font-weight: bold;\n      color: #333;\n      margin-bottom: 24px;\n      padding-bottom: 12px;\n      border-bottom: 3px solid #667eea;\n    }\n    \n    .charts-grid {\n      display: grid;\n      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));\n      gap: 30px;\n      margin-bottom: 40px;\n    }\n    \n    .chart-container {\n      background-color: white;\n      padding: 24px;\n      border-radius: 12px;\n      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);\n    }\n    \n    .insights-list {\n      display: grid;\n      gap: 16px;\n    }\n    \n    .insight-card {\n      background-color: #f8f9fa;\n      padding: 20px;\n      border-radius: 8px;\n      border-left: 4px solid #667eea;\n    }\n    \n    .insight-card .user-id {\n      font-weight: bold;\n      color: #667eea;\n      margin-bottom: 8px;\n    }\n    \n    .insight-card .insight-text {\n      color: #555;\n      line-height: 1.6;\n    }\n    \n    .top-performers {\n      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);\n      color: white;\n      padding: 40px;\n      margin-top: 40px;\n    }\n    \n    .top-performers .section-title {\n      color: white;\n      border-bottom-color: white;\n    }\n    \n    .performer-card {\n      background-color: rgba(255, 255, 255, 0.2);\n      backdrop-filter: blur(10px);\n      padding: 24px;\n      border-radius: 12px;\n      margin-bottom: 16px;\n    }\n    \n    .performer-card h4 {\n      font-size: 20px;\n      margin-bottom: 8px;\n    }\n    \n    .performer-card .reason {\n      font-size: 14px;\n      opacity: 0.9;\n    }\n    \n    .upsell-badge {\n      display: inline-block;\n      background-color: #ffd700;\n      color: #333;\n      padding: 4px 12px;\n      border-radius: 20px;\n      font-size: 12px;\n      font-weight: bold;\n      margin-left: 8px;\n    }\n    \n    .footer {\n      background-color: #2d3748;\n      color: white;\n      padding: 24px;\n      text-align: center;\n    }\n    \n    .footer p {\n      font-size: 14px;\n      opacity: 0.8;\n    }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <!-- Header -->\n    <div class=\"header\">\n      <h1>📊 Nexourz FB Analytics</h1>\n      <p>Weekly Performance Report</p>\n    </div>\n    \n    <!-- Summary Section -->\n    <div class=\"summary\">\n      <div class=\"summary-card\">\n        <h3>Total Users</h3>\n        <div class=\"value\">{{ $json.summary.total_users }}</div>\n      </div>\n      <div class=\"summary-card\">\n        <h3>Total Posts</h3>\n        <div class=\"value\">{{ $json.summary.total_posts }}</div>\n      </div>\n      <div class=\"summary-card\">\n        <h3>Success Rate</h3>\n        <div class=\"value\">{{ $json.summary.success_rate }}%</div>\n      </div>\n      <div class=\"summary-card\">\n        <h3>Avg Engagement</h3>\n        <div class=\"value\">{{ $json.overall_avg_engagement_rate }}%</div>\n      </div>\n    </div>\n    \n    <!-- Charts Section -->\n    <div class=\"section\">\n      <h2 class=\"section-title\">📈 Performance Charts</h2>\n      <div class=\"charts-grid\">\n        <div class=\"chart-container\">\n          <canvas id=\"postsBarChart\"></canvas>\n        </div>\n        <div class=\"chart-container\">\n          <canvas id=\"engagementLineChart\"></canvas>\n        </div>\n        <div class=\"chart-container\">\n          <canvas id=\"successDoughnutChart\"></canvas>\n        </div>\n      </div>\n    </div>\n    \n    <!-- User Insights Section -->\n    <div class=\"section\">\n      <h2 class=\"section-title\">💡 AI-Generated User Insights</h2>\n      <div class=\"insights-list\">\n        {{ $json.user_insights.map(user => `\n          <div class=\"insight-card\">\n            <div class=\"user-id\">User: ${user.user_id}</div>\n            <div class=\"insight-text\">${user.ai_insight || 'No insights available'}</div>\n          </div>\n        `).join('') }}\n      </div>\n    </div>\n    \n    <!-- Top Performers Section -->\n    <div class=\"top-performers\">\n      <h2 class=\"section-title\">🏆 Top Performers - Upsell Candidates</h2>\n      {{ $json.user_insights.filter(user => user.upsell_candidate).map(user => `\n        <div class=\"performer-card\">\n          <h4>\n            ${user.user_id}\n            <span class=\"upsell-badge\">UPSELL READY</span>\n          </h4>\n          <p class=\"reason\">${user.upsell_reason}</p>\n        </div>\n      `).join('') }}\n      {{ $json.user_insights.filter(user => user.upsell_candidate).length === 0 ? '<p>No upsell candidates identified this week.</p>' : '' }}\n    </div>\n    \n    <!-- Footer -->\n    <div class=\"footer\">\n      <p>Generated on {{ $now.toFormat('MMMM dd, yyyy - HH:mm:ss') }}</p>\n      <p>Nexourz Bulk FB Poster v1.0 | Powered by n8n</p>\n    </div>\n  </div>\n  \n  <script src=\"https://cdn.jsdelivr.net/npm/chart.js\"></script>\n  <script>\n    // Parse chart configurations from JSON\n    const postsBarChartConfig = {{ $json.chartConfigs.postsBarChartJson }};\n    const engagementLineChartConfig = {{ $json.chartConfigs.engagementLineChartJson }};\n    const successDoughnutChartConfig = {{ $json.chartConfigs.successDoughnutChartJson }};\n    \n    // Render charts\n    new Chart(document.getElementById('postsBarChart'), postsBarChartConfig);\n    new Chart(document.getElementById('engagementLineChart'), engagementLineChartConfig);\n    new Chart(document.getElementById('successDoughnutChart'), successDoughnutChartConfig);\n  </script>\n</body>\n</html>"
+      },
+      "id": "7451bc47-41a1-4884-ba92-d56f06786b21",
+      "name": "Build HTML Report",
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        7552,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "html",
+        "options": {
+          "fileName": "=Nexourz_Analytics_Report_{{ $now.format('yyyy-MM-dd') }}.pdf"
+        }
+      },
+      "id": "35104b51-510e-49b3-93b6-cb14bac6d1fa",
+      "name": "Convert to PDF",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        7776,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Analytics_Dashboard"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": null
+        },
+        "options": {
+          "useAppend": true
+        }
+      },
+      "id": "de76f020-e8fc-4cc5-81d4-9ec23968afaa",
+      "name": "Update Dashboard Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        8000,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "user_insights",
+        "options": {}
+      },
+      "id": "68c8e4b1-4146-42a2-af52-4596e2224de0",
+      "name": "Split Users for Email",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        8224,
+        5136
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "<__PLACEHOLDER_VALUE__from_email__>",
+        "toEmail": "={{ $json.user_email }}",
+        "subject": "📊 Your Weekly Nexourz Analytics Report",
+        "html": "=<html>\n<head>\n  <style>\n    body {\n      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n      background-color: #f4f4f4;\n      margin: 0;\n      padding: 0;\n    }\n    .container {\n      max-width: 600px;\n      margin: 40px auto;\n      background-color: #ffffff;\n      border-radius: 12px;\n      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);\n      overflow: hidden;\n    }\n    .header {\n      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n      color: white;\n      padding: 30px;\n      text-align: center;\n    }\n    .header h1 {\n      margin: 0;\n      font-size: 28px;\n    }\n    .content {\n      padding: 30px;\n    }\n    .insight-box {\n      background-color: #f8f9fa;\n      border-left: 4px solid #667eea;\n      padding: 20px;\n      margin: 20px 0;\n      border-radius: 4px;\n    }\n    .metrics-grid {\n      display: grid;\n      grid-template-columns: 1fr 1fr;\n      gap: 15px;\n      margin: 20px 0;\n    }\n    .metric-card {\n      background-color: #f8f9fa;\n      padding: 15px;\n      border-radius: 8px;\n      text-align: center;\n    }\n    .metric-card h3 {\n      margin: 0 0 8px 0;\n      font-size: 14px;\n      color: #7e8186;\n      text-transform: uppercase;\n    }\n    .metric-card .value {\n      font-size: 24px;\n      font-weight: bold;\n      color: #667eea;\n    }\n    .upsell-banner {\n      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);\n      color: white;\n      padding: 20px;\n      border-radius: 8px;\n      margin: 20px 0;\n      text-align: center;\n    }\n    .upsell-banner h2 {\n      margin: 0 0 10px 0;\n    }\n    .cta-button {\n      display: inline-block;\n      background-color: #ffd700;\n      color: #333;\n      padding: 12px 24px;\n      text-decoration: none;\n      border-radius: 6px;\n      font-weight: bold;\n      margin-top: 10px;\n    }\n    .footer {\n      background-color: #2d3748;\n      color: white;\n      padding: 20px;\n      text-align: center;\n      font-size: 12px;\n    }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>📊 Your Weekly Analytics Report</h1>\n      <p>Performance insights for {{ $json.user_id }}</p>\n    </div>\n    \n    <div class=\"content\">\n      <h2>💡 AI-Generated Insight</h2>\n      <div class=\"insight-box\">\n        <p>{{ $json.ai_insight || 'Keep up the great work! Your content is making an impact.' }}</p>\n      </div>\n      \n      <h2>📈 Your Key Metrics</h2>\n      <div class=\"metrics-grid\">\n        <div class=\"metric-card\">\n          <h3>Total Posts</h3>\n          <div class=\"value\">{{ $json.total_posts }}</div>\n        </div>\n        <div class=\"metric-card\">\n          <h3>Success Rate</h3>\n          <div class=\"value\">{{ (($json.successful_posts / $json.total_posts) * 100).toFixed(1) }}%</div>\n        </div>\n        <div class=\"metric-card\">\n          <h3>Engagement Rate</h3>\n          <div class=\"value\">{{ $json.engagement_rate }}%</div>\n        </div>\n        <div class=\"metric-card\">\n          <h3>Platform Average</h3>\n          <div class=\"value\">{{ $json.overall_avg_engagement_rate }}%</div>\n        </div>\n      </div>\n      \n      <h2>🎯 Performance Comparison</h2>\n      <p>\n        Your engagement rate is <strong>{{ $json.engagement_vs_avg > 0 ? $json.engagement_vs_avg + '% above' : Math.abs($json.engagement_vs_avg) + '% below' }}</strong> the platform average.\n        {{ $json.engagement_vs_avg > 0 ? '🎉 Outstanding performance!' : '💪 Keep optimizing your content strategy!' }}\n      </p>\n      \n      {{ $json.upsell_candidate ? `\n      <div class=\"upsell-banner\">\n        <h2>🏆 You're a Top Performer!</h2>\n        <p>${$json.upsell_reason}</p>\n        <p>Unlock advanced features to scale your success even further.</p>\n        <a href=\"https://nexourz.com/upgrade\" class=\"cta-button\">Upgrade to Pro</a>\n      </div>\n      ` : '' }}\n      \n      <p style=\"margin-top: 30px;\">\n        📎 <strong>Attached:</strong> Your detailed analytics report (PDF) with charts and insights.\n      </p>\n    </div>\n    \n    <div class=\"footer\">\n      <p>Generated on {{ $now.toFormat('MMMM dd, yyyy') }}</p>\n      <p>Nexourz Bulk FB Poster | Powered by n8n</p>\n    </div>\n  </div>\n</body>\n</html>",
+        "options": {
+          "appendAttribution": true,
+          "attachments": "data"
+        }
+      },
+      "id": "b3bd5a74-9cbe-49ce-8c3c-a9a2e74242ea",
+      "name": "Send User Report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        8448,
+        5136
+      ],
+      "webhookId": "7b71ae76-d8b0-432e-b5d4-63d1bd4d079e"
+    },
+    {
+      "parameters": {
+        "content": " Master Dashboard Reporter (Weekly SaaS Metrics)",
+        "height": 544,
+        "width": 3312
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        5344,
+        4944
+      ],
+      "typeVersion": 1,
+      "id": "024f7ac7-857b-498a-b6a2-7e1d9b6ca68b",
+      "name": "Sticky Note2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Process Accounts in Batches": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Post Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Content from Feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Content from Feed": {
+      "main": [
+        [
+          {
+            "node": "Get Active Accounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Accounts": {
+      "main": [
+        [
+          {
+            "node": "Process Accounts in Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Post Payload": {
+      "main": [
+        [
+          {
+            "node": "Post to Facebook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to Facebook": {
+      "main": [
+        [
+          {
+            "node": "Delay Between Posts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Error Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delay Between Posts": {
+      "main": [
+        [
+          {
+            "node": "Prepare Success Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Success Log": {
+      "main": [
+        [
+          {
+            "node": "Log Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Error Log": {
+      "main": [
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Success": {
+      "main": [
+        [
+          {
+            "node": "Process Accounts in Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Error": {
+      "main": [
+        [
+          {
+            "node": "Process Accounts in Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "Format Summary Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Summary Response": {
+      "main": [
+        [
+          {
+            "node": "Return Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Positive": {
+      "main": [
+        [
+          {
+            "node": "Add Rate Limit Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FB Comment Webhook": {
+      "main": [
+        [
+          {
+            "node": "Filter Recent Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Recent Comments": {
+      "main": [
+        [
+          {
+            "node": "Analyze Sentiment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Sentiment": {
+      "main": [
+        [
+          {
+            "node": "Check If Positive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Like Comment": {
+      "main": [
+        [
+          {
+            "node": "Prepare Like Log",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Random Delay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Random Delay": {
+      "main": [
+        [
+          {
+            "node": "Generate Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Reply": {
+      "main": [
+        [
+          {
+            "node": "Post Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Reply": {
+      "main": [
+        [
+          {
+            "node": "Prepare Reply Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Like Log": {
+      "main": [
+        [
+          {
+            "node": "Log Engagement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Reply Log": {
+      "main": [
+        [
+          {
+            "node": "Log Engagement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Rate Limit Check": {
+      "main": [
+        [
+          {
+            "node": "Check Recent Engagements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Recent Engagements": {
+      "main": [
+        [
+          {
+            "node": "Count Hourly Engagements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count Hourly Engagements": {
+      "main": [
+        [
+          {
+            "node": "Check Rate Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Rate Limit": {
+      "main": [
+        [
+          {
+            "node": "Like Comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Endpoint": {
+      "main": [
+        [
+          {
+            "node": "Prepare Account Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Ready Content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get User Posts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validate User Ownership",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Unknown Endpoint Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Auth Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Auth Token": {
+      "main": [
+        [
+          {
+            "node": "Check Auth Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Auth Valid": {
+      "main": [
+        [
+          {
+            "node": "Route by Endpoint",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Auth Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Auth Error": {
+      "main": [
+        [
+          {
+            "node": "Return Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Unknown Endpoint Error": {
+      "main": [
+        [
+          {
+            "node": "Return Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Account Data": {
+      "main": [
+        [
+          {
+            "node": "Save to Accounts_Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Accounts_Config": {
+      "main": [
+        [
+          {
+            "node": "Format Connect Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Connect Success": {
+      "main": [
+        [
+          {
+            "node": "Return Connect Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Ready Content": {
+      "main": [
+        [
+          {
+            "node": "Split Content Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Content Items": {
+      "main": [
+        [
+          {
+            "node": "Prepare Webhook Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Webhook Payload": {
+      "main": [
+        [
+          {
+            "node": "Call Bulk Poster Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Bulk Poster Webhook": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Batch Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Batch Results": {
+      "main": [
+        [
+          {
+            "node": "Format Batch Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Batch Success": {
+      "main": [
+        [
+          {
+            "node": "Return Batch Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User Posts": {
+      "main": [
+        [
+          {
+            "node": "Calculate Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Stats": {
+      "main": [
+        [
+          {
+            "node": "Format Stats Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Stats Success": {
+      "main": [
+        [
+          {
+            "node": "Return Stats Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate User Ownership": {
+      "main": [
+        [
+          {
+            "node": "Check Ownership Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Ownership Valid": {
+      "main": [
+        [
+          {
+            "node": "Prepare Config Update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Ownership Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Config Update": {
+      "main": [
+        [
+          {
+            "node": "Update Account Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Account Config": {
+      "main": [
+        [
+          {
+            "node": "Format Config Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Config Success": {
+      "main": [
+        [
+          {
+            "node": "Return Config Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Ownership Error": {
+      "main": [
+        [
+          {
+            "node": "Return Config Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Content Rows": {
+      "main": [
+        [
+          {
+            "node": "Check Media URL Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Content Feed Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch CSV Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch CSV Data": {
+      "main": [
+        [
+          {
+            "node": "Parse CSV to JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse CSV to JSON": {
+      "main": [
+        [
+          {
+            "node": "Split Content Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Media URL Valid": {
+      "main": [
+        [
+          {
+            "node": "AI Caption Humanizer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Invalid Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Caption Humanizer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Caption Humanizer": {
+      "main": [
+        [
+          {
+            "node": "Prepare for Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare for Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Append to Content_Feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append to Content_Feed": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Valid Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Invalid Items": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Invalid Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Valid Items": {
+      "main": [
+        [
+          {
+            "node": "Trigger Schedule Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Schedule Batch": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Invalid Items": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Results": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approval Webhook": {
+      "main": [
+        [
+          {
+            "node": "Update Content Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Content Status": {
+      "main": [
+        [
+          {
+            "node": "Format Approval Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Approval Response": {
+      "main": [
+        [
+          {
+            "node": "Return Approval Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Errors and Old Posts": {
+      "main": [
+        [
+          {
+            "node": "Classify Error Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monitor Every 6 Hours": {
+      "main": [
+        [
+          {
+            "node": "Calculate 24h Threshold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate 24h Threshold": {
+      "main": [
+        [
+          {
+            "node": "Query Post_Log Errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Post_Log Errors": {
+      "main": [
+        [
+          {
+            "node": "Filter Errors and Old Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Error Type": {
+      "main": [
+        [
+          {
+            "node": "Route by Error Type",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Aggregate All Errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Error Type": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Token Errors",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Aggregate Rate Limits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Token Errors": {
+      "main": [
+        [
+          {
+            "node": "Prepare Token Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Rate Limits": {
+      "main": [
+        [
+          {
+            "node": "Auto-Retry Rate Limited Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate All Errors": {
+      "main": [
+        [
+          {
+            "node": "AI Error Pattern Analyzer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Error Pattern Analyzer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Token Alert": {
+      "main": [
+        [
+          {
+            "node": "Merge Alerts and Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Error Pattern Analyzer": {
+      "main": [
+        [
+          {
+            "node": "Merge Alerts and Analysis",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Alerts and Analysis": {
+      "main": [
+        [
+          {
+            "node": "Format Alert Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Alert Message": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Email Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Slack Alert": {
+      "main": [
+        []
+      ]
+    },
+    "Send Email Alert": {
+      "main": [
+        [
+          {
+            "node": "Merge Alerts and Analysis",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Format Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Logs": {
+      "main": [
+        [
+          {
+            "node": "Compute User Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Analytics Trigger": {
+      "main": [
+        [
+          {
+            "node": "Query Post_Log",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Engagement_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Post_Log": {
+      "main": [
+        [
+          {
+            "node": "Merge Logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Engagement_Log": {
+      "main": [
+        [
+          {
+            "node": "Merge Logs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Compute User Metrics": {
+      "main": [
+        [
+          {
+            "node": "Split Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Users": {
+      "main": [
+        [
+          {
+            "node": "AI Insights Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Analytics Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Insights Generator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Insights Generator": {
+      "main": [
+        [
+          {
+            "node": "Aggregate User Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate User Insights": {
+      "main": [
+        [
+          {
+            "node": "Generate Charts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Charts": {
+      "main": [
+        [
+          {
+            "node": "Flag Top Performers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flag Top Performers": {
+      "main": [
+        [
+          {
+            "node": "Build HTML Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build HTML Report": {
+      "main": [
+        [
+          {
+            "node": "Convert to PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to PDF": {
+      "main": [
+        [
+          {
+            "node": "Update Dashboard Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Dashboard Sheet": {
+      "main": [
+        [
+          {
+            "node": "Split Users for Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Users for Email": {
+      "main": [
+        [
+          {
+            "node": "Send User Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "3c5622e1-f808-44b1-86f4-438c7c354436",
+  "meta": {
+    "instanceId": "98653e44f219be7a08327d9da1aac77c0171304a69c6e32e72de0ce989a1d9d2"
+  },
+  "id": "APU4pgjYreMl00zG",
+  "tags": []
+}
